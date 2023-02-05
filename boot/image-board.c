@@ -283,10 +283,9 @@ int genimg_get_format(const void *img_addr)
 		if (!fdt_check_header(img_addr))
 			return IMAGE_FORMAT_FIT;
 	}
-#if CONFIG_IS_ENABLED(ANDROID_BOOT_IMAGE)
-	if (!android_image_check_header(img_addr))
+	if (IS_ENABLED(CONFIG_ANDROID_BOOT_IMAGE) &&
+	    !android_image_check_header(img_addr))
 		return IMAGE_FORMAT_ANDROID;
-#endif
 
 	return IMAGE_FORMAT_INVALID;
 }
