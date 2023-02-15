@@ -1017,28 +1017,33 @@ success:
 int avb_find_main_pubkey(const AvbSlotVerifyData *data,
 			 const uint8_t **key, size_t *size)
 {
+	avb_assert(data);
+	avb_assert(!key || (key && size));
+
 	/*
-	 * The main VBMeta is always at index zero because we never call
-	 * avb_slot_verify with AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION.
+	 * A precondition of this function is that |avb_slot_verify| is not called
+	 * with AVB_SLOT_VERIFY_FLAGS_NO_VBMETA_PARTITION. This guarantees that the
+	 * primary vbmeta is at index zero.
 	 */
-	if (!data->num_vbmeta_images ||
-	    avb_vbmeta_image_verify(data->vbmeta_images[0].vbmeta_data,
-				    data->vbmeta_images[0].vbmeta_size,
-				    key, size) != AVB_VBMETA_VERIFY_RESULT_OK) {
+	if (data->num_vbmeta_images == 0
+	    || avb_vbmeta_image_verify(data->vbmeta_images[0].vbmeta_data,
+				       data->vbmeta_images[0].vbmeta_size,
+				       key, size) != AVB_VBMETA_VERIFY_RESULT_OK) {
 		return CMD_RET_FAILURE;
 	}
-
 	return CMD_RET_SUCCESS;
 }
 
 int avb_pubkey_is_trusted(const uint8_t *key, size_t size)
 {
-	/* These variables are generated from CONFIG_AVB_PUBKEY_FILE by bin2c */
+	// These variables are generated from CONFIG_AVB_PUBKEY_FILE by bin2c.
 	extern const char avb_pubkey[];
 	extern const size_t avb_pubkey_size;
 
-	if (size != avb_pubkey_size || memcmp(avb_pubkey, key, size))
-		return CMD_RET_FAILURE;
+	avb_assert(key);
 
+	if (size != avb_pubkey_size || memcmp(avb_pubkey, key, size)) {
+		return CMD_RET_FAILURE;
+	}
 	return CMD_RET_SUCCESS;
 }
