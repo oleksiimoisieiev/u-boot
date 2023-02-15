@@ -1,8 +1,7 @@
-
 /*
  * (C) Copyright 2018, Linaro Limited
  *
- * SPDX-License-Identifier:	GPL-2.0+
+ * SPDX-License-Identifier:   GPL-2.0+
  */
 
 #ifndef _AVB_VERIFY_H
@@ -39,6 +38,13 @@
  * `androidboot.vbmeta.device_state`) and failed verification.
  */
 enum avb_boot_state { AVB_GREEN, AVB_YELLOW, AVB_ORANGE, AVB_RED };
+
+// Verified boot state command line options.
+#define AVB_VERIFIED_BOOT_STATE_OPT(state) \
+    "androidboot.verifiedbootstate=" state
+#define AVB_VERIFIED_BOOT_STATE_GREEN AVB_VERIFIED_BOOT_STATE_OPT("green")
+#define AVB_VERIFIED_BOOT_STATE_YELLOW AVB_VERIFIED_BOOT_STATE_OPT("yellow")
+#define AVB_VERIFIED_BOOT_STATE_ORANGE AVB_VERIFIED_BOOT_STATE_OPT("orange")
 
 // Represents the contents of a preloaded partition.
 struct preloaded_partition {
@@ -119,7 +125,7 @@ void avb_ops_free(AvbOps *ops);
  * Returns: The "android.verifiedbootstate" string to append to the
  * command-line on success, NULL otherwise.
  */
-char *avb_set_state(AvbOps *ops, enum avb_boot_state boot_state);
+const char *avb_set_state(AvbOps *ops, enum avb_boot_state boot_state);
 
 /*
  * Returns a new command-line that appends the flag to require verity to the

@@ -15,58 +15,82 @@
 #include <tee.h>
 #include <tee/optee_ta_avb.h>
 
-/**
- * ============================================================================
- * Boot states support (GREEN, YELLOW, ORANGE, RED) and dm_verity
- * ============================================================================
- */
-char *avb_set_state(AvbOps *ops, enum avb_boot_state boot_state)
+const char *avb_set_state(AvbOps *ops, enum avb_boot_state boot_state)
 {
 	struct AvbOpsData *data;
-	char *cmdline = NULL;
 
-	if (!ops)
-		return NULL;
+	avb_assert(ops);
+	avb_assert(ops->user_data);
 
 	data = (struct AvbOpsData *)ops->user_data;
-	if (!data)
-		return NULL;
-
 	data->boot_state = boot_state;
-	switch (boot_state) {
+
+	switch (data->boot_state) {
 	case AVB_GREEN:
-		cmdline = "androidboot.verifiedbootstate=green";
-		break;
+		return AVB_VERIFIED_BOOT_STATE_GREEN;
 	case AVB_YELLOW:
-		cmdline = "androidboot.verifiedbootstate=yellow";
-		break;
+		return AVB_VERIFIED_BOOT_STATE_YELLOW;
 	case AVB_ORANGE:
-		cmdline = "androidboot.verifiedbootstate=orange";
+		return AVB_VERIFIED_BOOT_STATE_ORANGE;
 	case AVB_RED:
-		break;
+		// In the 'red' state, we supply no command-line arguments, to
+		// indicate that Android failed verified boot.
+	default:
+		// In cases where an unexpected boot state has been supplied,
+		// assume the device is not secure.
+		data->boot_state = AVB_RED;
+		return NULL;
+    }
+}
+
+/*
+ * Appends the given `arg` to the given `cmdline` and returns a newly allocated
+ * string containing the result. Callers must later free the result using
+ * |avb_free|.
+ *
+ * Returns: A string with the appended result, or NULL if the allocation failed.
+ */
+static char *append_arg_to_cmdline(const char *cmdline, const char *arg)
+{
+	char *cmdline_out = NULL;
+	const char *cmdline_tmp = NULL;
+
+	avb_assert(arg);
+
+	// If no command line is supplied, insert a single space.
+	cmdline_tmp = cmdline ? cmdline : " ";
+	cmdline_out = avb_strdupv(cmdline_tmp, " ", arg, NULL);
+	return cmdline_out;
+}
+
+/*
+ * Construct an command line using the list of `args` of size `num_args` and
+ * returns a newly allocated string containing the result. Callers must later
+ * free the result using |avb_free|.
+ *
+ * Returns: A string with the appended result, or NULL if the allocation failed.
+ */
+static char *append_args_to_cmdline(const char **args,
+				    size_t num_args)
+{
+	const char *cmdline_tmp = NULL;
+	char *cmdline_out = NULL;
+
+	avb_assert(args);
+	avb_assert(num_args > 0);
+
+	for (size_t i = 0; i < num_args; i++) {
+		cmdline_out = append_arg_to_cmdline(cmdline_tmp, args[i]);
+		if (cmdline_tmp) {
+			avb_free((void*)cmdline_tmp);
+		}
+		cmdline_tmp = (const char*)cmdline_out;
 	}
 
-	return cmdline;
+	return cmdline_out;
 }
 
-static char *append_cmd_line(char *cmdline_orig, char *cmdline_new)
-{
-	char *cmd_line;
-
-	if (!cmdline_new)
-		return cmdline_orig;
-
-	if (cmdline_orig)
-		cmd_line = cmdline_orig;
-	else
-		cmd_line = " ";
-
-	cmd_line = avb_strdupv(cmd_line, " ", cmdline_new, NULL);
-
-	return cmd_line;
-}
-
-static int avb_find_dm_args(char **args, char *str)
+static int avb_find_dm_args(const char **args, const char *str)
 {
 	int i;
 
@@ -83,7 +107,7 @@ static int avb_find_dm_args(char **args, char *str)
 
 static char *avb_set_enforce_option(const char *cmdline, const char *option)
 {
-	char *cmdarg[AVB_MAX_ARGS];
+	const char *cmdarg[AVB_MAX_ARGS];
 	char *newargs = NULL;
 	int i = 0;
 	int total_args;
@@ -104,11 +128,11 @@ static char *avb_set_enforce_option(const char *cmdline, const char *option)
 	} while (true);
 
 	total_args = i;
-	i = avb_find_dm_args(&cmdarg[0], VERITY_TABLE_OPT_LOGGING);
+	i = avb_find_dm_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_LOGGING);
 	if (i >= 0) {
 		cmdarg[i] = (char *)option;
 	} else {
-		i = avb_find_dm_args(&cmdarg[0], VERITY_TABLE_OPT_RESTART);
+		i = avb_find_dm_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_RESTART);
 		if (i < 0) {
 			printf("%s: No verity options found\n", __func__);
 			return NULL;
@@ -117,9 +141,7 @@ static char *avb_set_enforce_option(const char *cmdline, const char *option)
 		cmdarg[i] = (char *)option;
 	}
 
-	for (i = 0; i <= total_args; i++)
-		newargs = append_cmd_line(newargs, cmdarg[i]);
-
+	append_args_to_cmdline(cmdarg, total_args + 1);
 	return newargs;
 }
 
@@ -129,7 +151,7 @@ char *avb_set_ignore_corruption(const char *cmdline)
 
 	newargs = avb_set_enforce_option(cmdline, VERITY_TABLE_OPT_LOGGING);
 	if (newargs)
-		newargs = append_cmd_line(newargs,
+		newargs = append_arg_to_cmdline(newargs,
 					  "androidboot.veritymode=eio");
 
 	return newargs;
@@ -141,7 +163,7 @@ char *avb_set_enforce_verity(const char *cmdline)
 
 	newargs = avb_set_enforce_option(cmdline, VERITY_TABLE_OPT_RESTART);
 	if (newargs)
-		newargs = append_cmd_line(newargs,
+		newargs = append_arg_to_cmdline(newargs,
 					  "androidboot.veritymode=enforcing");
 	return newargs;
 }
@@ -975,7 +997,7 @@ int avb_verify_partitions(struct AvbOps *ops,
 	bool unlocked = false;
 	enum avb_boot_state verified_boot_state = AVB_GREEN;
 	AvbSlotVerifyFlags flags = 0;
-	char *extra_args = NULL;
+	const char *extra_args = NULL;
 
 	if (ops->read_is_device_unlocked(ops, &unlocked) !=
 	    AVB_IO_RESULT_OK) {
@@ -1034,13 +1056,13 @@ success_if_unlocked:
 	printf("Returning Verification success due to unlocked bootloader\n");
 success:
 	extra_args = avb_set_state(ops, verified_boot_state);
-        if (out_cmdline) {
+	if (out_cmdline) {
 		if (extra_args) {
-			*out_cmdline = append_cmd_line((*out_data)->cmdline, extra_args);
+			*out_cmdline = append_arg_to_cmdline((*out_data)->cmdline, extra_args);
 		} else {
 			*out_cmdline = strdup((*out_data)->cmdline);
 		}
-        }
+	}
 	return CMD_RET_SUCCESS;
 }
 
