@@ -90,16 +90,22 @@ static char *append_args_to_cmdline(const char **args,
 	return cmdline_out;
 }
 
-static int avb_find_dm_args(const char **args, const char *str)
-{
-	int i;
+/*
+ * Returns the index of the argument in `args` that contains a string match of
+ * the target string `arg`.
+ *
+ * Precondition: `args` must have length less than |kMaxAvbCommandLineArgs|.
+ *
+ * Returns: The index if found, -1 if not found.
+ */
+static int avb_find_cmdline_args(const char **args, const char* arg) {
+	avb_assert(args);
+	avb_assert(arg);
 
-	if (!str)
-		return -1;
-
-	for (i = 0; i < AVB_MAX_ARGS && args[i]; ++i) {
-		if (strstr(args[i], str))
+	for (size_t i = 0; i < AVB_MAX_ARGS && args[i]; ++i) {
+		if (avb_strstr(args[i], arg)) {
 			return i;
+		}
 	}
 
 	return -1;
@@ -128,11 +134,11 @@ static char *avb_set_enforce_option(const char *cmdline, const char *option)
 	} while (true);
 
 	total_args = i;
-	i = avb_find_dm_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_LOGGING);
+	i = avb_find_cmdline_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_LOGGING);
 	if (i >= 0) {
 		cmdarg[i] = (char *)option;
 	} else {
-		i = avb_find_dm_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_RESTART);
+		i = avb_find_cmdline_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_RESTART);
 		if (i < 0) {
 			printf("%s: No verity options found\n", __func__);
 			return NULL;
