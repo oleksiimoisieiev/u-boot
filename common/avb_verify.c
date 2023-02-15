@@ -63,115 +63,57 @@ static char *append_arg_to_cmdline(const char *cmdline, const char *arg)
 	return cmdline_out;
 }
 
-/*
- * Construct an command line using the list of `args` of size `num_args` and
- * returns a newly allocated string containing the result. Callers must later
- * free the result using |avb_free|.
- *
- * Returns: A string with the appended result, or NULL if the allocation failed.
- */
-static char *append_args_to_cmdline(const char **args,
-				    size_t num_args)
+static char *avb_set_enforce_option(const char *cmdline, const char *option)
 {
-	const char *cmdline_tmp = NULL;
 	char *cmdline_out = NULL;
 
-	avb_assert(args);
-	avb_assert(num_args > 0);
+	avb_assert(cmdline);
+	avb_assert(option);
 
-	for (size_t i = 0; i < num_args; i++) {
-		cmdline_out = append_arg_to_cmdline(cmdline_tmp, args[i]);
-		if (cmdline_tmp) {
-			avb_free((void*)cmdline_tmp);
-		}
-		cmdline_tmp = (const char*)cmdline_out;
+	cmdline_out = avb_replace(cmdline, VERITY_TABLE_OPT_RESTART, option);
+	if (!cmdline_out) {
+		return NULL;
+	}
+
+	cmdline_out = avb_replace(cmdline_out, VERITY_TABLE_OPT_LOGGING, option);
+	if (!cmdline_out) {
+		return NULL;
+	}
+
+	if (!avb_strstr(cmdline_out, option)) {
+		printf("%s: No verity options found\n", __func__);
+		return NULL;
 	}
 
 	return cmdline_out;
 }
 
-/*
- * Returns the index of the argument in `args` that contains a string match of
- * the target string `arg`.
- *
- * Precondition: `args` must have length less than |kMaxAvbCommandLineArgs|.
- *
- * Returns: The index if found, -1 if not found.
- */
-static int avb_find_cmdline_args(const char **args, const char* arg) {
-	avb_assert(args);
-	avb_assert(arg);
-
-	for (size_t i = 0; i < AVB_MAX_ARGS && args[i]; ++i) {
-		if (avb_strstr(args[i], arg)) {
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-static char *avb_set_enforce_option(const char *cmdline, const char *option)
-{
-	const char *cmdarg[AVB_MAX_ARGS];
-	char *newargs = NULL;
-	int i = 0;
-	int total_args;
-
-	memset(cmdarg, 0, sizeof(cmdarg));
-	cmdarg[i++] = strtok((char *)cmdline, " ");
-
-	do {
-		cmdarg[i] = strtok(NULL, " ");
-		if (!cmdarg[i])
-			break;
-
-		if (++i >= AVB_MAX_ARGS) {
-			printf("%s: Can't handle more then %d args\n",
-			       __func__, i);
-			return NULL;
-		}
-	} while (true);
-
-	total_args = i;
-	i = avb_find_cmdline_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_LOGGING);
-	if (i >= 0) {
-		cmdarg[i] = (char *)option;
-	} else {
-		i = avb_find_cmdline_args((const char**)&cmdarg[0], VERITY_TABLE_OPT_RESTART);
-		if (i < 0) {
-			printf("%s: No verity options found\n", __func__);
-			return NULL;
-		}
-
-		cmdarg[i] = (char *)option;
-	}
-
-	append_args_to_cmdline(cmdarg, total_args + 1);
-	return newargs;
-}
-
 char *avb_set_ignore_corruption(const char *cmdline)
 {
-	char *newargs = NULL;
+	char *cmdline_out = NULL;
 
-	newargs = avb_set_enforce_option(cmdline, VERITY_TABLE_OPT_LOGGING);
-	if (newargs)
-		newargs = append_arg_to_cmdline(newargs,
-					  "androidboot.veritymode=eio");
+	avb_assert(cmdline);
 
-	return newargs;
+	cmdline_out = avb_set_enforce_option(cmdline, VERITY_TABLE_OPT_LOGGING);
+	if (!cmdline_out) {
+		return NULL;
+	}
+
+	return append_arg_to_cmdline(cmdline_out, "androidboot.veritymode=eio");
 }
 
 char *avb_set_enforce_verity(const char *cmdline)
 {
-	char *newargs;
+	char *cmdline_out = NULL;
 
-	newargs = avb_set_enforce_option(cmdline, VERITY_TABLE_OPT_RESTART);
-	if (newargs)
-		newargs = append_arg_to_cmdline(newargs,
-					  "androidboot.veritymode=enforcing");
-	return newargs;
+	avb_assert(cmdline);
+
+	cmdline_out = avb_set_enforce_option(cmdline, VERITY_TABLE_OPT_RESTART);
+	if (!cmdline_out) {
+		return NULL;
+	}
+
+	return append_arg_to_cmdline(cmdline_out, "androidboot.veritymode=enforcing");
 }
 
 /**
