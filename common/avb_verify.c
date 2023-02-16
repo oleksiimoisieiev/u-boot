@@ -99,7 +99,7 @@ char *avb_set_ignore_corruption(const char *cmdline)
 		return NULL;
 	}
 
-	return append_arg_to_cmdline(cmdline_out, "androidboot.veritymode=eio");
+	return append_arg_to_cmdline(cmdline_out, AVB_VERITY_MODE_IGNORE_CORRUPTION);
 }
 
 char *avb_set_enforce_verity(const char *cmdline)
@@ -113,7 +113,7 @@ char *avb_set_enforce_verity(const char *cmdline)
 		return NULL;
 	}
 
-	return append_arg_to_cmdline(cmdline_out, "androidboot.veritymode=enforcing");
+	return append_arg_to_cmdline(cmdline_out, AVB_VERITY_MODE_ENFORCING);
 }
 
 /**

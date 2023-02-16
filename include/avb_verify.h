@@ -18,6 +18,11 @@
 // The command-line flags to control restart if verity table is corrupted.
 #define VERITY_TABLE_OPT_RESTART "restart_on_corruption"
 #define VERITY_TABLE_OPT_LOGGING "ignore_corruption"
+// The command-line flags to control verity mode.
+#define AVB_VERITY_MODE_OPT(state) \
+    "androidboot.veritymode=" state
+#define AVB_VERITY_MODE_ENFORCING AVB_VERITY_MODE_OPT("enforcing")
+#define AVB_VERITY_MODE_IGNORE_CORRUPTION AVB_VERITY_MODE_OPT("eio")
 // The minimum alignment in bytes for I/O buffers.
 #define ALLOWED_BUF_ALIGN 8
 
@@ -111,7 +116,8 @@ AvbOps *avb_ops_alloc(const char *iface, const char *devnum);
 
 /*
  * Frees a previously allocated AvbOps handle. If a TEE session handle was
- * allocated during operation, it is also closed here.
+ * allocated during operation, it is also closed here. This operation
+ * invalidates the entire AvbOps structure.
  */
 void avb_ops_free(AvbOps *ops);
 
