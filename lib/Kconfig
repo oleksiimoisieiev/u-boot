@@ -68,21 +68,8 @@ config HAVE_ARCH_IOMAP
 config HAVE_PRIVATE_LIBGCC
 	bool
 
-config LIB_BORINGSSL
-	bool "Enable AOSP library: BoringSSL"
-	default n
-
 config LIB_UUID
 	bool
-
-config LIB_OPENDICE
-	bool "Enable AOSP library: Open Profile for DICE"
-	default n
-
-config LIB_OPENDICE_CONFIG
-	string "Name of Open Profile for DICE library configuration"
-	default "boringssl_ed25519"
-	depends on LIB_OPENDICE
 
 config SEMIHOSTING
 	bool "Support semihosting"

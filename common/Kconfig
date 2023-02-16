@@ -615,16 +615,6 @@ config ANDROID_PERSISTENT_RAW_DISK_DEVICE
 		This is the device number of the persistent disk. Possible devices
 		start at 0.
 
-config ANDROID_BCC
-	bool "Support Boot Certificate Chain in Android boot flow"
-	depends on ANDROID_BOOTLOADER
-	depends on BCC
-	depends on DICE_RMEM
-	default n
-	help
-	  This enables support for generating the next Boot Certificate Chain
-	  entry in the Android Bootloader boot flow.
-
 menu "Start-up hooks"
 
 config CYCLIC
@@ -874,28 +864,6 @@ config AVB_IS_UNLOCKED
 	  bootloader is locked.
 
 endif # AVB_VERIFY
-
-config BCC
-	bool "Support for Boot Certificate Chain derivation"
-	default n
-	select LIB_OPENDICE
-	select LIB_BORINGSSL
-	select SHA256
-	help
-	  This enables support for generating the next entry in Boot Certificate
-	  Chain using Open Profile for DICE derivation. This is a form of
-	  measured boot that can be used for remote attestation and key
-	  provisioning.
-
-if BCC
-
-config VM_INSTANCE_PARTITION_NAME
-	string "Partition name of the VM instance image"
-	default "vm-instance"
-	help
-	  The name of the partitions that holds the VM instance image.
-
-endif # BCC
 
 config SCP03
 	bool "Build SCP03 - Secure Channel Protocol O3 - controls"

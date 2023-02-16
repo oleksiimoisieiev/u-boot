@@ -23,7 +23,6 @@
  * environment. After that, we use a hash table.
  */
 
-#include <bcc.h>
 #include <common.h>
 #include <cli.h>
 #include <command.h>
@@ -563,34 +562,6 @@ int do_env_flags(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 #endif
 
 #ifdef CONFIG_CMD_ENV_VERIFIED_IMPORT
-#ifdef CONFIG_ANDROID_BCC
-static int env_verified_import_bcc_handover(const char *iface_str, int devnum,
-					    const AvbSlotVerifyData *data)
-{
-	const char *instance_uuid = "0ab72d30-86ae-4d05-81b2-c1760be2b1f9";
-	enum bcc_mode bcc_mode;
-	bool strict_boot, new_instance, must_exist;
-	int ret;
-
-	ret = bcc_vm_instance_avf_boot_state(&strict_boot, &new_instance);
-	if (ret)
-		return ret;
-
-	bcc_mode = CONFIG_IS_ENABLED(AVB_IS_UNLOCKED)
-		? BCC_MODE_DEBUG : BCC_MODE_NORMAL;
-	must_exist = strict_boot && !new_instance;
-	ret = bcc_vm_instance_handover(iface_str, devnum, instance_uuid,
-				       must_exist, "U-boot env", bcc_mode, data,
-				       NULL, NULL, 0);
-	if (ret < 0)
-		return ret;
-
-	if (strict_boot && new_instance && ret != BCC_VM_INSTANCE_CREATED)
-		return -EEXIST;
-
-	return 0;
-}
-#endif
 
 /*
  * env verified_import [-d] <interface> <dev>[#<part>]
@@ -664,14 +635,6 @@ static int do_env_verified_import(struct cmd_tbl *cmdtp, int flag,
 		pr_err("Failed to find verified partition %s\n", argv[1]);
 		goto err_avb_slot_verify_data_free;
 	}
-
-#ifdef CONFIG_ANDROID_BCC
-	if (env_verified_import_bcc_handover(argv[0], dev_desc->devnum,
-					     out_data)) {
-		pr_err("Failed to do BCC handover.\n");
-		goto err_avb_slot_verify_data_free;
-	}
-#endif
 
 	ret = CMD_RET_SUCCESS;
 err_avb_slot_verify_data_free:

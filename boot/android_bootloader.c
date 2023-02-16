@@ -9,7 +9,6 @@
 
 #include <android_bootloader_keymint.h>
 #include <android_ab.h>
-#include <bcc.h>
 #include <cli.h>
 #include <common.h>
 #include <dm/device.h>
@@ -21,7 +20,6 @@
 #include <part.h>
 #include <serial.h>
 #include <avb_verify.h>
-#include <linux/sizes.h>
 
 #define ANDROID_PARTITION_BOOT "boot"
 #define ANDROID_PARTITION_VENDOR_BOOT "vendor_boot"
@@ -409,42 +407,6 @@ bail:
 	return 0;
 }
 
-#ifdef CONFIG_ANDROID_BCC
-static int do_avb_bcc_handover(const char *iface_str, int devnum,
-			       enum android_boot_mode boot_mode,
-			       const AvbSlotVerifyData *code_data,
-			       const AvbSlotVerifyData *config_data)
-{
-	const char *instance_uuid = "7e8221e7-03e6-4969-948b-73a4c809a4f2";
-	enum bcc_mode bcc_mode;
-	bool strict_boot, new_instance, must_exist;
-	int ret;
-
-	ret = bcc_vm_instance_avf_boot_state(&strict_boot, &new_instance);
-	if (ret)
-		return ret;
-
-	if (CONFIG_IS_ENABLED(AVB_IS_UNLOCKED)) {
-		bcc_mode = BCC_MODE_DEBUG;
-	} else {
-		bcc_mode = (boot_mode == ANDROID_BOOT_MODE_NORMAL)
-				? BCC_MODE_NORMAL : BCC_MODE_MAINTENANCE;
-	}
-
-	must_exist = strict_boot && !new_instance;
-	ret = bcc_vm_instance_handover(iface_str, devnum, instance_uuid,
-				       must_exist, "AVB", bcc_mode, code_data,
-				       config_data, NULL, 0);
-	if (ret < 0)
-		return ret;
-
-	if (strict_boot && new_instance && ret != BCC_VM_INSTANCE_CREATED)
-		return -EEXIST;
-
-	return 0;
-}
-#endif /* CONFIG_ANDROID_BCC */
-
 /**
  * Calls avb_verify() with ops allocated for iface and devnum.
  *
@@ -735,14 +697,6 @@ int android_bootloader_boot_flow(const char* iface_str,
 		}
 	}
 #endif /* CONFIG_ANDROID_PERSISTENT_RAW_DISK_DEVICE */
-
-#ifdef CONFIG_ANDROID_BCC
-	if (do_avb_bcc_handover(iface_str, persistant_dev_desc->devnum, mode,
-				avb_out_data, avb_out_bootconfig_data)) {
-		log_err("Failed to do BCC handover.\n");
-		goto bail;
-	}
-#endif
 
 	/* Load the kernel from the desired "boot" partition. */
 	boot_part_num =

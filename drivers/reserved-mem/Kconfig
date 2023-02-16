@@ -1,7 +1,0 @@
-config DICE_RMEM
-	bool "DICE reserved memory region driver"
-	help
-	  Device Identifier Composition Engine is a measured boot protocol used
-	  for remote attestation and key provisioning. This device driver binds
-	  to the reserved memory region used for handing over data from one
-	  boot stage to another.
