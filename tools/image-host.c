@@ -14,8 +14,10 @@
 #include <image.h>
 #include <version.h>
 
+#if defined(CONFIG_TOOLS_LIBCRYPTO)
 #include <openssl/pem.h>
 #include <openssl/evp.h>
+#endif
 
 /**
  * fit_set_hash_value - set hash value in requested has node
