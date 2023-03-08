@@ -1708,8 +1708,6 @@ int fit_image_cipher_get_algo(const void *fit, int noffset, char **algo);
 
 struct cipher_algo *image_get_cipher_algo(const char *full_name);
 
-#if !defined(USE_HOSTCC)
-#if defined(CONFIG_ANDROID_BOOT_IMAGE)
 struct andr_boot_info;
 struct blk_desc;
 struct disk_partition;
@@ -1734,6 +1732,8 @@ void android_print_contents(const struct andr_boot_info *boot_info);
 bool android_image_print_dtb_contents(ulong hdr_addr);
 #endif
 
+#if !defined(USE_HOSTCC)
+#if defined(CONFIG_ANDROID_BOOT_IMAGE)
 #include <avb_verify.h>
 
 /** Android implementation of get_preloaded_partition for avb_ops.h. Currently, it preloads boot and
