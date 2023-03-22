@@ -28,6 +28,13 @@ config UDP_FUNCTION_FASTBOOT_PORT
 	help
 	  The fastboot protocol requires a UDP port number.
 
+config TCP_FUNCTION_FASTBOOT
+	depends on NET
+	select FASTBOOT
+	bool "Enable fastboot protocol over TCP"
+	help
+	  This enables the fastboot protocol over TCP.
+
 if FASTBOOT
 
 config FASTBOOT_BUF_ADDR

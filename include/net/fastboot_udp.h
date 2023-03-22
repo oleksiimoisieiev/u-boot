@@ -14,7 +14,7 @@
 /**
  * Wait for incoming fastboot comands.
  */
-void fastboot_start_server(void);
+void fastboot_udp_start_server(void);
 
 /**********************************************************************/
 

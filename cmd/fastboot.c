@@ -20,7 +20,7 @@ static int do_fastboot_udp(int argc, char *const argv[],
 			   uintptr_t buf_addr, size_t buf_size)
 {
 #if CONFIG_IS_ENABLED(UDP_FUNCTION_FASTBOOT)
-	int err = net_loop(FASTBOOT);
+	int err = net_loop(FASTBOOT_UDP);
 
 	if (err < 0) {
 		printf("fastboot udp error: %d\n", err);
@@ -30,6 +30,24 @@ static int do_fastboot_udp(int argc, char *const argv[],
 	return CMD_RET_SUCCESS;
 #else
 	pr_err("Fastboot UDP not enabled\n");
+	return CMD_RET_FAILURE;
+#endif
+}
+
+static int do_fastboot_tcp(int argc, char *const argv[],
+			   uintptr_t buf_addr, size_t buf_size)
+{
+#if CONFIG_IS_ENABLED(TCP_FUNCTION_FASTBOOT)
+	int err = net_loop(FASTBOOT_TCP);
+
+	if (err < 0) {
+		printf("fastboot tcp error: %d\n", err);
+		return CMD_RET_FAILURE;
+	}
+
+	return CMD_RET_SUCCESS;
+#else
+	pr_err("Fastboot TCP not enabled\n");
 	return CMD_RET_FAILURE;
 #endif
 }
@@ -139,7 +157,8 @@ NXTARG:
 
 	if (!strcmp(argv[1], "udp"))
 		return do_fastboot_udp(argc, argv, buf_addr, buf_size);
-
+	if (!strcmp(argv[1], "tcp"))
+		return do_fastboot_tcp(argc, argv, buf_addr, buf_size);
 	if (!strcmp(argv[1], "usb")) {
 		argv++;
 		argc--;
