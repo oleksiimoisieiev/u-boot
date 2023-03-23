@@ -563,11 +563,6 @@ int android_bootloader_boot_flow(const char* iface_str,
 	if (misc_part_info) {
 		mode = android_bootloader_load_and_clear_mode(dev_desc, misc_part_info);
 		printf("ANDROID: reboot reason: \"%s\"\n", android_boot_mode_str(mode));
-		// TODO (rammuthiah) fastboot isn't suported on cuttlefish yet.
-		// Once it is, these lines can be removed.
-		if (mode == ANDROID_BOOT_MODE_BOOTLOADER) {
-			mode = ANDROID_BOOT_MODE_NORMAL;
-		}
 	}
 
 	if (!verify) {
