@@ -43,6 +43,27 @@ copy_to_dist_dir(
 )
 
 kernel_build(
+    name = "crosvm_x86_64",
+    outs = [
+        "System.map",
+        "u-boot",
+        "u-boot.bin",
+    ],
+    build_config = "build.config.crosvm.x86_64",
+    deps = [
+        "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
+        "@swig//:lib",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "crosvm_x86_64_dist",
+    data = [":crosvm_x86_64"],
+    dist_dir = "out/u-boot/dist",
+    flat = True,
+)
+
+kernel_build(
     name = "gem5_aarch64",
     outs = [
         "System.map",
