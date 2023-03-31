@@ -1,3 +1,5 @@
+load("@bazel_tools//tools/python:toolchain.bzl", "py_runtime_pair")
+load("@kernel_toolchain_info//:dict.bzl", "CLANG_VERSION")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:kernel.bzl", "kernel_build")
 
@@ -115,4 +117,19 @@ copy_to_dist_dir(
     data = [":qemu_riscv64"],
     dist_dir = "out/u-boot/dist",
     flat = True,
+)
+
+# Use SWIG enabled Python
+py_runtime_pair(
+    name = "py_runtime_pair",
+    py2_runtime = "//prebuilts/build-tools:python2",
+    py3_runtime = "//prebuilts/clang/host/linux-x86/clang-{}:python3".format(
+        CLANG_VERSION,
+    ),
+)
+
+toolchain(
+    name = "py_toolchain",
+    toolchain = ":py_runtime_pair",
+    toolchain_type = "@bazel_tools//tools/python:toolchain_type",
 )
