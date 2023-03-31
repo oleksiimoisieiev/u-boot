@@ -13,3 +13,7 @@ PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG
     ${ROOT_DIR}/${KERNEL_DIR}/avb_unlocked.fragment
 "
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG}"
+
+# binman requires HOME to be set, but HOME is unset by Kleaf.
+# Hence manually set it to a fake value.
+HOME=${HOME:-/tmp/home}
