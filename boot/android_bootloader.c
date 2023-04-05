@@ -20,6 +20,7 @@
 #include <part.h>
 #include <serial.h>
 #include <avb_verify.h>
+#include <linux/sizes.h>
 
 #define ANDROID_PARTITION_BOOT "boot"
 #define ANDROID_PARTITION_VENDOR_BOOT "vendor_boot"
