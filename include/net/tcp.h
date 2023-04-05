@@ -5,20 +5,16 @@
  * Copyright 2017 Duncan Hare, All rights reserved.
  */
 
+#ifndef __TCP_H__
+#define __TCP_H__
+
 #define TCP_ACTIVITY 127		/* Number of packets received   */
 					/* before console progress mark */
+
+#define GET_TCP_HDR_LEN_IN_BYTES(x) ((x) >> 2)
+
 /**
- * struct ip_tcp_hdr - IP and TCP header
- * @ip_hl_v: header length and version
- * @ip_tos: type of service
- * @ip_len: total length
- * @ip_id: identification
- * @ip_off: fragment offset field
- * @ip_ttl: time to live
- * @ip_p: protocol
- * @ip_sum: checksum
- * @ip_src: Source IP address
- * @ip_dst: Destination IP address
+ * struct tcp_hdr - TCP header
  * @tcp_src: TCP source port
  * @tcp_dst: TCP destination port
  * @tcp_seq: TCP sequence number
@@ -28,18 +24,8 @@
  * @tcp_win: TCP windows size
  * @tcp_xsum: Checksum
  * @tcp_ugr: Pointer to urgent data
- */
-struct ip_tcp_hdr {
-	u8		ip_hl_v;
-	u8		ip_tos;
-	u16		ip_len;
-	u16		ip_id;
-	u16		ip_off;
-	u8		ip_ttl;
-	u8		ip_p;
-	u16		ip_sum;
-	struct in_addr	ip_src;
-	struct in_addr	ip_dst;
+*/
+struct tcp_hdr {
 	u16		tcp_src;
 	u16		tcp_dst;
 	u32		tcp_seq;
@@ -51,8 +37,8 @@ struct ip_tcp_hdr {
 	u16		tcp_ugr;
 } __packed;
 
-#define IP_TCP_HDR_SIZE		(sizeof(struct ip_tcp_hdr))
-#define TCP_HDR_SIZE		(IP_TCP_HDR_SIZE  - IP_HDR_SIZE)
+#define TCP_HDR_SIZE		(sizeof(struct tcp_hdr))
+#define IP_TCP_HDR_SIZE         (IP_HDR_SIZE + TCP_HDR_SIZE)
 
 #define TCP_DATA	0x00	/* Data Packet - internal use only	*/
 #define TCP_FIN		0x01	/* Finish flag				*/
@@ -178,7 +164,8 @@ struct tcp_t_opt {
 
 /**
  * struct ip_tcp_hdr_o - IP + TCP header + TCP options
- * @hdr: IP + TCP header
+ * @ip_hdr: IP + TCP header
+ * @tcp_hdr: TCP header
  * @mss: TCP MSS Option
  * @scale: TCP Windows Scale Option
  * @sack_p: TCP Sack-Permitted Option
@@ -186,7 +173,8 @@ struct tcp_t_opt {
  * @end: end of options
  */
 struct ip_tcp_hdr_o {
-	struct	ip_tcp_hdr hdr;
+	struct  ip_hdr     ip_hdr;
+	struct	tcp_hdr    tcp_hdr;
 	struct	tcp_mss	   mss;
 	struct	tcp_scale  scale;
 	struct	tcp_sack_p sack_p;
@@ -198,13 +186,15 @@ struct ip_tcp_hdr_o {
 
 /**
  * struct ip_tcp_hdr_s - IP + TCP header + TCP options
- * @hdr: IP + TCP header
+ * @ip_hdr: IP + TCP header
+ * @tcp_hdr: TCP header
  * @t_opt: TCP Timestamp Option
  * @sack_v: TCP SACK Option
  * @end: end of options
  */
 struct ip_tcp_hdr_s {
-	struct	ip_tcp_hdr	hdr;
+	struct  ip_hdr     ip_hdr;
+	struct	tcp_hdr    tcp_hdr;
 	struct	tcp_t_opt	t_opt;
 	struct	tcp_sack_v	sack_v;
 	u8	end;
@@ -303,3 +293,5 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int len);
 
 u16 tcp_set_pseudo_header(uchar *pkt, struct in_addr src, struct in_addr dest,
 			  int tcp_len, int pkt_len);
+
+#endif // __TCP_H__

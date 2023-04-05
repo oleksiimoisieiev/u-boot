@@ -155,7 +155,7 @@ u16 tcp_set_pseudo_header(uchar *pkt, struct in_addr src, struct in_addr dest,
  */
 int net_set_ack_options(union tcp_build_pkt *b)
 {
-	b->sack.hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(LEN_B_TO_DW(TCP_HDR_SIZE));
+	b->sack.tcp_hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(LEN_B_TO_DW(TCP_HDR_SIZE));
 
 	b->sack.t_opt.kind = TCP_O_TS;
 	b->sack.t_opt.len = TCP_OPT_LEN_A;
@@ -187,12 +187,12 @@ int net_set_ack_options(union tcp_build_pkt *b)
 			b->sack.sack_v.hill[3].r = TCP_O_NOP;
 		}
 
-		b->sack.hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(ROUND_TCPHDR_LEN(TCP_HDR_SIZE +
+		b->sack.tcp_hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(ROUND_TCPHDR_LEN(TCP_HDR_SIZE +
 										 TCP_TSOPT_SIZE +
 										 tcp_lost.len));
 	} else {
 		b->sack.sack_v.kind = 0;
-		b->sack.hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(ROUND_TCPHDR_LEN(TCP_HDR_SIZE +
+		b->sack.tcp_hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(ROUND_TCPHDR_LEN(TCP_HDR_SIZE +
 										 TCP_TSOPT_SIZE));
 	}
 
@@ -201,7 +201,7 @@ int net_set_ack_options(union tcp_build_pkt *b)
 	 * TCP header to add to the total packet length
 	 */
 
-	return GET_TCP_HDR_LEN_IN_BYTES(b->sack.hdr.tcp_hlen);
+	return GET_TCP_HDR_LEN_IN_BYTES(b->sack.tcp_hdr.tcp_hlen);
 }
 
 /**
@@ -213,7 +213,7 @@ void net_set_syn_options(union tcp_build_pkt *b)
 	if (IS_ENABLED(CONFIG_PROT_TCP_SACK))
 		tcp_lost.len = 0;
 
-	b->ip.hdr.tcp_hlen = 0xa0;
+	b->ip.tcp_hdr.tcp_hlen = 0xa0;
 
 	b->ip.mss.kind = TCP_O_MSS;
 	b->ip.mss.len = TCP_OPT_LEN_4;
@@ -249,9 +249,9 @@ int tcp_set_tcp_header(uchar *pkt, int dport, int sport, int payload_len,
 	 * Header: 5 32 bit words. 4 bits TCP header Length,
 	 *         4 bits reserved options
 	 */
-	b->ip.hdr.tcp_flags = action;
+	b->ip.tcp_hdr.tcp_flags = action;
 	pkt_hdr_len = IP_TCP_HDR_SIZE;
-	b->ip.hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(LEN_B_TO_DW(TCP_HDR_SIZE));
+	b->ip.tcp_hdr.tcp_hlen = SHIFT_TO_TCPHDRLEN_FIELD(LEN_B_TO_DW(TCP_HDR_SIZE));
 
 	switch (action) {
 	case TCP_SYN:
@@ -274,7 +274,7 @@ int tcp_set_tcp_header(uchar *pkt, int dport, int sport, int payload_len,
 	case TCP_SYN | TCP_ACK:
 	case TCP_ACK:
 		pkt_hdr_len = IP_HDR_SIZE + net_set_ack_options(b);
-		b->ip.hdr.tcp_flags = action;
+		b->ip.tcp_hdr.tcp_flags = action;
 		debug_cond(DEBUG_DEV_PKT,
 			   "TCP Hdr:ACK (%pI4, %pI4, s=%u, a=%u, A=%x)\n",
 			   &net_server_ip, &net_ip, tcp_seq_num, tcp_ack_num,
@@ -308,7 +308,7 @@ int tcp_set_tcp_header(uchar *pkt, int dport, int sport, int payload_len,
 		fallthrough;
 	default:
 		pkt_hdr_len = IP_HDR_SIZE + net_set_ack_options(b);
-		b->ip.hdr.tcp_flags = action | TCP_PUSH | TCP_ACK;
+		b->ip.tcp_hdr.tcp_flags = action | TCP_PUSH | TCP_ACK;
 		debug_cond(DEBUG_DEV_PKT,
 			   "TCP Hdr:dft  (%pI4, %pI4, s=%u, a=%u, A=%x)\n",
 			   &net_server_ip, &net_ip,
@@ -320,10 +320,10 @@ int tcp_set_tcp_header(uchar *pkt, int dport, int sport, int payload_len,
 
 	tcp_ack_edge = tcp_ack_num;
 	/* TCP Header */
-	b->ip.hdr.tcp_ack = htonl(tcp_ack_edge);
-	b->ip.hdr.tcp_src = htons(sport);
-	b->ip.hdr.tcp_dst = htons(dport);
-	b->ip.hdr.tcp_seq = htonl(tcp_seq_num);
+	b->ip.tcp_hdr.tcp_ack = htonl(tcp_ack_edge);
+	b->ip.tcp_hdr.tcp_src = htons(sport);
+	b->ip.tcp_hdr.tcp_dst = htons(dport);
+	b->ip.tcp_hdr.tcp_seq = htonl(tcp_seq_num);
 
 	/*
 	 * TCP window size - TCP header variable tcp_win.
@@ -340,13 +340,13 @@ int tcp_set_tcp_header(uchar *pkt, int dport, int sport, int payload_len,
 	 * it is, then the u-boot tftp or nfs kernel netboot should be
 	 * considered.
 	 */
-	b->ip.hdr.tcp_win = htons(PKTBUFSRX * TCP_MSS >> TCP_SCALE);
+	b->ip.tcp_hdr.tcp_win = htons(PKTBUFSRX * TCP_MSS >> TCP_SCALE);
 
-	b->ip.hdr.tcp_xsum = 0;
-	b->ip.hdr.tcp_ugr = 0;
+	b->ip.tcp_hdr.tcp_xsum = 0;
+	b->ip.tcp_hdr.tcp_ugr = 0;
 
-	b->ip.hdr.tcp_xsum = tcp_set_pseudo_header(pkt, net_ip, net_server_ip,
-						   tcp_len, pkt_len);
+	b->ip.tcp_hdr.tcp_xsum = tcp_set_pseudo_header(pkt, net_ip, net_server_ip,
+						       tcp_len, pkt_len);
 
 	net_set_ip_header((uchar *)&b->ip, net_server_ip, net_ip,
 			  pkt_len, IPPROTO_TCP);
@@ -638,7 +638,7 @@ static u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, int payload_len)
 void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 {
 	int tcp_len = pkt_len - IP_HDR_SIZE;
-	u16 tcp_rx_xsum = b->ip.hdr.ip_sum;
+	u16 tcp_rx_xsum = b->ip.ip_hdr.ip_sum;
 	u8  tcp_action = TCP_DATA;
 	u32 tcp_seq_num, tcp_ack_num;
 	int tcp_hdr_len, payload_len;
@@ -646,11 +646,11 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 	/* Verify IP header */
 	debug_cond(DEBUG_DEV_PKT,
 		   "TCP RX in RX Sum (to=%pI4, from=%pI4, len=%d)\n",
-		   &b->ip.hdr.ip_src, &b->ip.hdr.ip_dst, pkt_len);
+		   &b->ip.ip_hdr.ip_src, &b->ip.ip_hdr.ip_dst, pkt_len);
 
-	b->ip.hdr.ip_src = net_server_ip;
-	b->ip.hdr.ip_dst = net_ip;
-	b->ip.hdr.ip_sum = 0;
+	b->ip.ip_hdr.ip_src = net_server_ip;
+	b->ip.ip_hdr.ip_dst = net_ip;
+	b->ip.ip_hdr.ip_sum = 0;
 	if (tcp_rx_xsum != compute_ip_checksum(b, IP_HDR_SIZE)) {
 		debug_cond(DEBUG_DEV_PKT,
 			   "TCP RX IP xSum Error (%pI4, =%pI4, len=%d)\n",
@@ -659,10 +659,10 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 	}
 
 	/* Build pseudo header and verify TCP header */
-	tcp_rx_xsum = b->ip.hdr.tcp_xsum;
-	b->ip.hdr.tcp_xsum = 0;
-	if (tcp_rx_xsum != tcp_set_pseudo_header((uchar *)b, b->ip.hdr.ip_src,
-						 b->ip.hdr.ip_dst, tcp_len,
+	tcp_rx_xsum = b->ip.tcp_hdr.tcp_xsum;
+	b->ip.tcp_hdr.tcp_xsum = 0;
+	if (tcp_rx_xsum != tcp_set_pseudo_header((uchar *)b, b->ip.ip_hdr.ip_src,
+						 b->ip.ip_hdr.ip_dst, tcp_len,
 						 pkt_len)) {
 		debug_cond(DEBUG_DEV_PKT,
 			   "TCP RX TCP xSum Error (%pI4, %pI4, len=%d)\n",
@@ -670,7 +670,7 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 		return;
 	}
 
-	tcp_hdr_len = GET_TCP_HDR_LEN_IN_BYTES(b->ip.hdr.tcp_hlen);
+	tcp_hdr_len = GET_TCP_HDR_LEN_IN_BYTES(b->ip.tcp_hdr.tcp_hlen);
 	payload_len = tcp_len - tcp_hdr_len;
 
 	if (tcp_hdr_len > TCP_HDR_SIZE)
@@ -680,11 +680,11 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 	 * Incoming sequence and ack numbers are server's view of the numbers.
 	 * The app must swap the numbers when responding.
 	 */
-	tcp_seq_num = ntohl(b->ip.hdr.tcp_seq);
-	tcp_ack_num = ntohl(b->ip.hdr.tcp_ack);
+	tcp_seq_num = ntohl(b->ip.tcp_hdr.tcp_seq);
+	tcp_ack_num = ntohl(b->ip.tcp_hdr.tcp_ack);
 
 	/* Packets are not ordered. Send to app as received. */
-	tcp_action = tcp_state_machine(b->ip.hdr.tcp_flags,
+	tcp_action = tcp_state_machine(b->ip.tcp_hdr.tcp_flags,
 				       tcp_seq_num, payload_len);
 
 	tcp_activity_count++;
@@ -698,8 +698,8 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 			   "TCP Notify (action=%x, Seq=%u,Ack=%u,Pay%d)\n",
 			   tcp_action, tcp_seq_num, tcp_ack_num, payload_len);
 
-		(*tcp_packet_handler) ((uchar *)b + pkt_len - payload_len, b->ip.hdr.tcp_dst,
-				       b->ip.hdr.ip_src, b->ip.hdr.tcp_src, tcp_seq_num,
+		(*tcp_packet_handler) ((uchar *)b + pkt_len - payload_len, b->ip.tcp_hdr.tcp_dst,
+				       b->ip.ip_hdr.ip_src, b->ip.tcp_hdr.tcp_src, tcp_seq_num,
 				       tcp_ack_num, tcp_action, payload_len);
 
 	} else if (tcp_action != TCP_DATA) {
@@ -711,8 +711,8 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 		 * Warning: Incoming Ack & Seq sequence numbers are transposed
 		 * here to outgoing Seq & Ack sequence numbers
 		 */
-		net_send_tcp_packet(0, ntohs(b->ip.hdr.tcp_src),
-				    ntohs(b->ip.hdr.tcp_dst),
+		net_send_tcp_packet(0, ntohs(b->ip.tcp_hdr.tcp_src),
+				    ntohs(b->ip.tcp_hdr.tcp_dst),
 				    (tcp_action & (~TCP_PUSH)),
 				    tcp_ack_num, tcp_ack_edge);
 	}

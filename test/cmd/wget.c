@@ -52,9 +52,9 @@ static int sb_syn_handler(struct udevice *dev, void *packet,
 {
 	struct eth_sandbox_priv *priv = dev_get_priv(dev);
 	struct ethernet_hdr *eth = packet;
-	struct ip_tcp_hdr *tcp = packet + ETHER_HDR_SIZE;
+	struct tcp_hdr *tcp = packet + ETHER_HDR_SIZE + IP_HDR_SIZE;
 	struct ethernet_hdr *eth_send;
-	struct ip_tcp_hdr *tcp_send;
+	struct tcp_hdr *tcp_send;
 
 	/* Don't allow the buffer to overrun */
 	if (priv->recv_packets >= PKTBUFSRX)
@@ -64,7 +64,7 @@ static int sb_syn_handler(struct udevice *dev, void *packet,
 	memcpy(eth_send->et_dest, eth->et_src, ARP_HLEN);
 	memcpy(eth_send->et_src, priv->fake_host_hwaddr, ARP_HLEN);
 	eth_send->et_protlen = htons(PROT_IP);
-	tcp_send = (void *)eth_send + ETHER_HDR_SIZE;
+	tcp_send = (void *)eth_send + ETHER_HDR_SIZE + IP_HDR_SIZE;
 	tcp_send->tcp_src = tcp->tcp_dst;
 	tcp_send->tcp_dst = tcp->tcp_src;
 	tcp_send->tcp_seq = htonl(0);
@@ -97,9 +97,9 @@ static int sb_ack_handler(struct udevice *dev, void *packet,
 {
 	struct eth_sandbox_priv *priv = dev_get_priv(dev);
 	struct ethernet_hdr *eth = packet;
-	struct ip_tcp_hdr *tcp = packet + ETHER_HDR_SIZE;
+	struct tcp_hdr *tcp = packet + ETHER_HDR_SIZE + IP_HDR_SIZE;
 	struct ethernet_hdr *eth_send;
-	struct ip_tcp_hdr *tcp_send;
+	struct tcp_hdr *tcp_send;
 	void *data;
 	int pkt_len;
 	int payload_len = 0;
@@ -115,7 +115,7 @@ static int sb_ack_handler(struct udevice *dev, void *packet,
 	memcpy(eth_send->et_dest, eth->et_src, ARP_HLEN);
 	memcpy(eth_send->et_src, priv->fake_host_hwaddr, ARP_HLEN);
 	eth_send->et_protlen = htons(PROT_IP);
-	tcp_send = (void *)eth_send + ETHER_HDR_SIZE;
+	tcp_send = (void *)eth_send + ETHER_HDR_SIZE + IP_HDR_SIZE;
 	tcp_send->tcp_src = tcp->tcp_dst;
 	tcp_send->tcp_dst = tcp->tcp_src;
 	data = (void *)tcp_send + IP_TCP_HDR_SIZE;
@@ -163,14 +163,14 @@ static int sb_http_handler(struct udevice *dev, void *packet,
 {
 	struct ethernet_hdr *eth = packet;
 	struct ip_hdr *ip;
-	struct ip_tcp_hdr *tcp;
+	struct tcp_hdr *tcp;
 
 	if (ntohs(eth->et_protlen) == PROT_ARP) {
 		return sb_arp_handler(dev, packet, len);
 	} else if (ntohs(eth->et_protlen) == PROT_IP) {
 		ip = packet + ETHER_HDR_SIZE;
 		if (ip->ip_p == IPPROTO_TCP) {
-			tcp = packet + ETHER_HDR_SIZE;
+			tcp = ip + IP_HDR_SIZE;
 			if (tcp->tcp_flags == TCP_SYN)
 				return sb_syn_handler(dev, packet, len);
 			else if (tcp->tcp_flags & TCP_ACK && !(tcp->tcp_flags & TCP_SYN))
