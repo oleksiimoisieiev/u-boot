@@ -92,6 +92,7 @@
 #include <log.h>
 #include <net.h>
 #include <net6.h>
+#include <net/tcp6.h>
 #include <ndisc.h>
 #include <net/fastboot_udp.h>
 #include <net/fastboot_tcp.h>
@@ -373,6 +374,9 @@ static void net_clear_handlers(void)
 	net_set_udp_handler(NULL);
 	net_set_arp_handler(NULL);
 	net_set_timeout_handler(0, NULL);
+#if defined(CONFIG_IPV6)
+	net_set_tcp_handler6(NULL);
+#endif
 }
 
 static void net_cleanup_loop(void)
@@ -886,7 +890,9 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 {
 	uchar *pkt;
 	int eth_hdr_size;
+#if defined(CONFIG_PROT_TCP)
 	int ip_tcp_hdr_size;
+#endif
 	int pkt_hdr_size;
 
 	/* make sure the net_tx_packet is initialized (net_init() was called) */

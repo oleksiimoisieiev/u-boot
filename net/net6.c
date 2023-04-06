@@ -14,6 +14,7 @@
 #include <malloc.h>
 #include <net.h>
 #include <net6.h>
+#include <net/tcp6.h>
 #include <ndisc.h>
 
 /* NULL IPv6 address */
@@ -377,6 +378,18 @@ int net_send_ip_packet6(uchar *ether, struct in6_addr *dest, int dport, int spor
 		pkt += udp_hdr_size;
 		break;
 #endif
+#if defined(CONFIG_PROT_TCP)
+	case IPPROTO_TCP:
+		tcp_hdr_size = net_set_tcp_header6(pkt, dport, sport,
+						   payload_len, action, tcp_seq_num,
+						   tcp_ack_num);
+		ip_hdr_size = ip6_add_hdr(pkt, &net_ip6, dest, IPPROTO_TCP, 64,
+					  tcp_hdr_size + payload_len);
+
+		pkt_hdr_size += ip_hdr_size + tcp_hdr_size;
+		pkt += ip_hdr_size + tcp_hdr_size;
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -410,11 +423,21 @@ int net_send_udp_packet6(uchar *ether, struct in6_addr *dest, int dport,
 	return net_send_ip_packet6(ether, dest, dport, sport, len, IPPROTO_UDP, 0, 0, 0);
 }
 
+int net_send_tcp_packet6(int payload_len, int dport, int sport, u8 action,
+			 u32 tcp_seq_num, u32 tcp_ack_num)
+{
+	return net_send_ip_packet6(net_server_ethaddr, &net_server_ip6, dport,
+				   sport, payload_len, IPPROTO_TCP, action,
+				   tcp_seq_num, tcp_ack_num);
+}
+
 int net_ip6_handler(struct ethernet_hdr *et, struct ip6_hdr *ip6, int len)
 {
+	union tcp6_build_pkt *tcp_headers;
 	struct in_addr zero_ip = {.s_addr = 0 };
 	struct icmp6hdr *icmp;
 	struct udp_hdr *udp;
+	struct tcp_hdr *tcp;
 	u16 csum;
 	u16 csum_p;
 	u16 hlen;
@@ -472,6 +495,22 @@ int net_ip6_handler(struct ethernet_hdr *et, struct ip6_hdr *ip6, int len)
 				zero_ip,
 				ntohs(udp->udp_src),
 				ntohs(udp->udp_len) - 8);
+		break;
+	case IPPROTO_TCP:
+		tcp = (struct tcp_hdr *)(((uchar *)ip6) + IP6_HDR_SIZE);
+		csum = tcp->tcp_xsum;
+		hlen = ntohs(ip6->payload_len);
+		tcp->tcp_xsum = 0;
+		/* checksum */
+		csum_p = csum_partial((u8 *)tcp, hlen, 0);
+		tcp->tcp_xsum = csum_ipv6_magic(&ip6->saddr, &ip6->daddr,
+						hlen, IPPROTO_TCP, csum_p);
+
+		if (csum != tcp->tcp_xsum)
+			return -EINVAL;
+
+		tcp_headers = (union tcp6_build_pkt *)ip6;
+		rxhand_tcp6(tcp_headers, len);
 		break;
 	default:
 		return -EINVAL;
