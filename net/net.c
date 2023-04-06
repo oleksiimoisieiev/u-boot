@@ -886,6 +886,7 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 {
 	uchar *pkt;
 	int eth_hdr_size;
+	int ip_tcp_hdr_size;
 	int pkt_hdr_size;
 
 	/* make sure the net_tx_packet is initialized (net_init() was called) */
@@ -904,19 +905,24 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 	pkt = (uchar *)net_tx_packet;
 
 	eth_hdr_size = net_set_ether(pkt, ether, PROT_IP);
+	pkt_hdr_size = eth_hdr_size;
+	pkt += eth_hdr_size;
 
 	switch (proto) {
 	case IPPROTO_UDP:
-		net_set_udp_header(pkt + eth_hdr_size, dest, dport, sport,
+		net_set_udp_header(pkt, dest, dport, sport,
 				   payload_len);
-		pkt_hdr_size = eth_hdr_size + IP_UDP_HDR_SIZE;
+		pkt_hdr_size += IP_UDP_HDR_SIZE;
 		break;
 #if defined(CONFIG_PROT_TCP)
 	case IPPROTO_TCP:
-		pkt_hdr_size = eth_hdr_size
-			+ tcp_set_tcp_header(pkt + eth_hdr_size, dport, sport,
-					     payload_len, action, tcp_seq_num,
-					     tcp_ack_num);
+		ip_tcp_hdr_size = IP_HDR_SIZE;
+		ip_tcp_hdr_size += net_set_tcp_header(pkt, dport, sport,
+						      payload_len, action, tcp_seq_num,
+						      tcp_ack_num);
+		net_set_ip_header(pkt, net_server_ip, net_ip,
+				  ip_tcp_hdr_size + payload_len, IPPROTO_TCP);
+		pkt_hdr_size += ip_tcp_hdr_size;
 		break;
 #endif
 	default:

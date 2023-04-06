@@ -321,15 +321,13 @@ int ip6_add_hdr(uchar *xip, struct in6_addr *src, struct in6_addr *dest,
 	return sizeof(struct ip6_hdr);
 }
 
-int net_send_udp_packet6(uchar *ether, struct in6_addr *dest, int dport,
-			 int sport, int len)
+int udp6_add_hdr(uchar *xip, struct in6_addr *dest, int dport, int sport,
+		 int len)
 {
-	uchar *pkt;
 	struct udp_hdr *udp;
 	u16 csum_p;
 
-	udp = (struct udp_hdr *)((uchar *)net_tx_packet + net_eth_hdr_size() +
-			IP6_HDR_SIZE);
+	udp = (struct udp_hdr *)xip;
 
 	udp->udp_dst = htons(dport);
 	udp->udp_src = htons(sport);
@@ -341,37 +339,75 @@ int net_send_udp_packet6(uchar *ether, struct in6_addr *dest, int dport,
 	udp->udp_xsum = csum_ipv6_magic(&net_ip6, dest, len + UDP_HDR_SIZE,
 					IPPROTO_UDP, csum_p);
 
+	return sizeof(struct udp_hdr);
+}
+
+int net_send_ip_packet6(uchar *ether, struct in6_addr *dest, int dport, int sport,
+			int payload_len, int proto, u8 action, u32 tcp_seq_num,
+			u32 tcp_ack_num)
+{
+	uchar *pkt;
+	int eth_hdr_size;
+	int ip_hdr_size;
+	int udp_hdr_size;
+	int tcp_hdr_size;
+	int pkt_hdr_size;
+
+	/* make sure the net_tx_packet is initialized (net_init() was called) */
+	assert(net_tx_packet != NULL);
+	if (net_tx_packet == NULL)
+		return -1;
+
+	pkt = (uchar *)net_tx_packet;
+
+	eth_hdr_size = net_set_ether(pkt, ether, PROT_IP6);
+	pkt_hdr_size = eth_hdr_size;
+	pkt += eth_hdr_size;
+
+	switch (proto) {
+#if defined(CONFIG_PROT_UDP)
+	case IPPROTO_UDP:
+		ip_hdr_size = ip6_add_hdr(pkt, &net_ip6, dest, IPPROTO_UDP, 64,
+					  payload_len + UDP_HDR_SIZE);
+		pkt_hdr_size += ip_hdr_size;
+		pkt += ip_hdr_size;
+
+		udp_hdr_size = udp6_add_hdr(pkt, dest, dport, sport, payload_len);
+		pkt_hdr_size += udp_hdr_size;
+		pkt += udp_hdr_size;
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+
 	/* if MAC address was not discovered yet, save the packet and do
 	 * neighbour discovery
 	 */
-	if (!memcmp(ether, net_null_ethaddr, 6)) {
+	if (memcmp(ether, net_null_ethaddr, 6) == 0) {
+		memcpy((uchar *)net_nd_tx_packet,
+		       (uchar *)net_tx_packet, pkt_hdr_size + payload_len);
+		memset((uchar *)net_tx_packet, 0, pkt_hdr_size + payload_len);
+
 		net_copy_ip6(&net_nd_sol_packet_ip6, dest);
 		net_nd_packet_mac = ether;
-
-		pkt = net_nd_tx_packet;
-		pkt += net_set_ether(pkt, net_nd_packet_mac, PROT_IP6);
-		pkt += ip6_add_hdr(pkt, &net_ip6, dest, IPPROTO_UDP, 64,
-				len + UDP_HDR_SIZE);
-		memcpy(pkt, (uchar *)udp, len + UDP_HDR_SIZE);
-
 		/* size of the waiting packet */
-		net_nd_tx_packet_size = (pkt - net_nd_tx_packet) +
-			UDP_HDR_SIZE + len;
-
-		/* and do the neighbor solicitation */
+		net_nd_tx_packet_size = pkt_hdr_size + payload_len;
 		net_nd_try = 1;
 		net_nd_timer_start = get_timer(0);
 		ndisc_request();
 		return 1;	/* waiting */
 	}
 
-	pkt = (uchar *)net_tx_packet;
-	pkt += net_set_ether(pkt, ether, PROT_IP6);
-	pkt += ip6_add_hdr(pkt, &net_ip6, dest, IPPROTO_UDP, 64,
-			len + UDP_HDR_SIZE);
-	(void)eth_send(net_tx_packet, pkt - net_tx_packet + UDP_HDR_SIZE + len);
+	(void)eth_send(net_tx_packet, pkt_hdr_size + payload_len);
 
 	return 0;	/* transmitted */
+}
+
+int net_send_udp_packet6(uchar *ether, struct in6_addr *dest, int dport,
+			 int sport, int len)
+{
+	return net_send_ip_packet6(ether, dest, dport, sport, len, IPPROTO_UDP, 0, 0, 0);
 }
 
 int net_ip6_handler(struct ethernet_hdr *et, struct ip6_hdr *ip6, int len)

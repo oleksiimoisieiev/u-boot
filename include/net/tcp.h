@@ -8,10 +8,20 @@
 #ifndef __TCP_H__
 #define __TCP_H__
 
+#include <net.h>
+
 #define TCP_ACTIVITY 127		/* Number of packets received   */
 					/* before console progress mark */
 
+/*
+ * TCP lengths are stored as a rounded up number of 32 bit words.
+ * Add 3 to length round up, rounded, then divided into the
+ * length in 32 bit words.
+ */
+#define LEN_B_TO_DW(x) ((x) >> 2)
+#define ROUND_TCPHDR_LEN(x) (LEN_B_TO_DW((x) + 3))
 #define GET_TCP_HDR_LEN_IN_BYTES(x) ((x) >> 2)
+#define SHIFT_TO_TCPHDRLEN_FIELD(x) ((x) << 4)
 
 /**
  * struct tcp_hdr - TCP header
@@ -24,7 +34,7 @@
  * @tcp_win: TCP windows size
  * @tcp_xsum: Checksum
  * @tcp_ugr: Pointer to urgent data
-*/
+ */
 struct tcp_hdr {
 	u16		tcp_src;
 	u16		tcp_dst;
@@ -163,22 +173,34 @@ struct tcp_t_opt {
  */
 
 /**
- * struct ip_tcp_hdr_o - IP + TCP header + TCP options
- * @ip_hdr: IP + TCP header
- * @tcp_hdr: TCP header
+ * struct tcp_hdr_o - TCP options
  * @mss: TCP MSS Option
  * @scale: TCP Windows Scale Option
  * @sack_p: TCP Sack-Permitted Option
  * @t_opt: TCP Timestamp Option
  * @end: end of options
  */
-struct ip_tcp_hdr_o {
-	struct  ip_hdr     ip_hdr;
-	struct	tcp_hdr    tcp_hdr;
+struct tcp_hdr_o {
 	struct	tcp_mss	   mss;
 	struct	tcp_scale  scale;
 	struct	tcp_sack_p sack_p;
 	struct	tcp_t_opt  t_opt;
+	u8	end;
+} __packed;
+
+#define TCP_O_SIZE (sizeof(struct tcp_hdr_o))
+
+/**
+ * struct ip_tcp_hdr_o - IP + TCP header + TCP options
+ * @ip_hdr: IP + TCP header
+ * @tcp_hdr: TCP header
+ * @tcp_o: TCP options
+ * @end: end of IP/TCP header
+ */
+struct ip_tcp_hdr_o {
+	struct  ip_hdr     ip_hdr;
+	struct	tcp_hdr    tcp_hdr;
+	struct  tcp_hdr_o  tcp_o;
 	u8	end;
 } __packed;
 
@@ -209,7 +231,7 @@ struct ip_tcp_hdr_s {
 
 /**
  * struct pseudo_hdr - Pseudo Header
- * @padding: pseudo hdr size = ip_tcp hdr size
+ * @padding: pseudo hdr size = ip hdr size
  * @p_src: Source IP address
  * @p_dst: Destination IP address
  * @rsvd: reserved
@@ -236,7 +258,6 @@ struct pseudo_hdr {
  *
  * Build Pseudo header in packed buffer
  * first, calculate TCP checksum, then build IP header in packed buffer.
- *
  */
 union tcp_build_pkt {
 	struct pseudo_hdr ph;
@@ -269,8 +290,76 @@ enum tcp_state {
 
 enum tcp_state tcp_get_tcp_state(void);
 void tcp_set_tcp_state(enum tcp_state new_state);
-int tcp_set_tcp_header(uchar *pkt, int dport, int sport, int payload_len,
+
+/**
+ * net_set_tcp_header_common() - IP version agnostic TCP header building implementation
+ *
+ * @tcp_hdr: pointer to TCP header struct
+ * @tcp_o: pointer to TCP options header struct
+ * @sack_t_opt: pointer to TCP sack options header struct
+ * @sack_v: pointer to TCP sack header struct
+ * @dport: destination TCP port
+ * @sport: source TCP port
+ * @payload_len: TCP payload len
+ * @action: TCP action (SYN, ACK, FIN, etc)
+ * @tcp_seq_num: TCP sequential number
+ * @tcp_ack_num: TCP acknowledgment number
+ *
+ * returns TCP header
+ */
+int net_set_tcp_header_common(struct tcp_hdr *tcp_hdr, struct tcp_hdr_o *tcp_o,
+			      struct tcp_t_opt *sack_t_opt, struct tcp_sack_v *sack_v,
+			      u16 dport, u16 sport, int payload_len, u8 action,
+			      u32 tcp_seq_num, u32 tcp_ack_num);
+
+/**
+ * net_set_tcp_header() - IPv4 TCP header bulding implementation
+ *
+ * @pkt: pointer to the IP header
+ * @dport: destination TCP port
+ * @sport: source TCP port
+ * @payload_len: TCP payload len
+ * @action: TCP action (SYN, ACK, FIN, etc)
+ * @tcp_seq_num: TCP sequential number
+ * @tcp_ack_num: TCP acknowledgment number
+ *
+ * returns TCP header
+ */
+int net_set_tcp_header(uchar *pkt, u16 dport, u16 sport, int payload_len,
 		       u8 action, u32 tcp_seq_num, u32 tcp_ack_num);
+
+/**
+ * tcp_parse_options() - parsing TCP options
+ *
+ * @o: pointer to the option field.
+ * @o_len: length of the option field.
+ */
+void tcp_parse_options(uchar *o, int o_len);
+
+/**
+ * tcp_state_machine() - update TCP state in a reaction to incoming packet
+ *
+ * @tcp_flags: TCP action (SYN, ACK, FIN, etc)
+ * @tcp_seq_num: TCP sequential number
+ * @tcp_seq_num_out: TCP sequential number we expect to answer with
+ * @tcp_ack_num_out: TCP acknowledgment number we expect to answer with
+ * @payload_len: TCP payload len
+ *
+ * returns TCP action we expect to answer with
+ */
+u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
+		     u32 *tcp_ack_num_out, int payload_len);
+
+/**
+ * tcp_sent_state_machine() - update TCP state in a reaction to outcoming packet
+ *
+ * @action: TCP action (SYN, ACK, FIN, etc)
+ * @tcp_seq_num: TCP sequential number
+ * @tcp_ack_num: TCP acknowledgment number
+ *
+ * returns TCP action we expect to answer with
+ */
+u8 tcp_sent_state_machine(u8 action, u32 *tcp_seq_num, u32 *tcp_ack_num);
 
 /**
  * rxhand_tcp() - An incoming packet handler.
