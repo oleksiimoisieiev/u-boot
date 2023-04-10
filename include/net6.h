@@ -305,6 +305,20 @@ int net_send_udp_packet6(uchar *ether, struct in6_addr *dest, int dport,
 			 int sport, int len);
 
 /**
+ * net_send_tcp_packet6() - Make up TCP packet and send it
+ *
+ * @payload_len: TCP payload length
+ * @dport:	 destination port
+ * @sport:	 source port
+ * @action:	 TCP flag (SYN, ACL, PUSH, etc)
+ * @tcp_seq_num: TCP sequence number
+ * @tcp_ack_num: TCP ackno
+ * Return: 0 if send successfully, -1 otherwise
+ */
+int net_send_tcp_packet6(int payload_len, int dport, int sport, u8 action,
+			 u32 tcp_seq_num, u32 tcp_ack_num);
+
+/**
  * net_ip6_handler() - Handle IPv6 packet
  *
  * @et:		pointer to the beginning of the packet

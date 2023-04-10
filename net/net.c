@@ -92,6 +92,7 @@
 #include <log.h>
 #include <net.h>
 #include <net6.h>
+#include <net/tcp6.h>
 #include <ndisc.h>
 #include <net/fastboot_udp.h>
 #include <net/fastboot_tcp.h>
@@ -373,6 +374,9 @@ static void net_clear_handlers(void)
 	net_set_udp_handler(NULL);
 	net_set_arp_handler(NULL);
 	net_set_timeout_handler(0, NULL);
+#if defined(CONFIG_IPV6)
+	net_set_tcp_handler6(NULL);
+#endif
 }
 
 static void net_cleanup_loop(void)
@@ -886,6 +890,9 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 {
 	uchar *pkt;
 	int eth_hdr_size;
+#if defined(CONFIG_PROT_TCP)
+	int ip_tcp_hdr_size;
+#endif
 	int pkt_hdr_size;
 
 	/* make sure the net_tx_packet is initialized (net_init() was called) */
@@ -904,19 +911,24 @@ int net_send_ip_packet(uchar *ether, struct in_addr dest, int dport, int sport,
 	pkt = (uchar *)net_tx_packet;
 
 	eth_hdr_size = net_set_ether(pkt, ether, PROT_IP);
+	pkt_hdr_size = eth_hdr_size;
+	pkt += eth_hdr_size;
 
 	switch (proto) {
 	case IPPROTO_UDP:
-		net_set_udp_header(pkt + eth_hdr_size, dest, dport, sport,
+		net_set_udp_header(pkt, dest, dport, sport,
 				   payload_len);
-		pkt_hdr_size = eth_hdr_size + IP_UDP_HDR_SIZE;
+		pkt_hdr_size += IP_UDP_HDR_SIZE;
 		break;
 #if defined(CONFIG_PROT_TCP)
 	case IPPROTO_TCP:
-		pkt_hdr_size = eth_hdr_size
-			+ tcp_set_tcp_header(pkt + eth_hdr_size, dport, sport,
-					     payload_len, action, tcp_seq_num,
-					     tcp_ack_num);
+		ip_tcp_hdr_size = IP_HDR_SIZE;
+		ip_tcp_hdr_size += net_set_tcp_header(pkt, dport, sport,
+						      payload_len, action, tcp_seq_num,
+						      tcp_ack_num);
+		net_set_ip_header(pkt, net_server_ip, net_ip,
+				  ip_tcp_hdr_size + payload_len, IPPROTO_TCP);
+		pkt_hdr_size += ip_tcp_hdr_size;
 		break;
 #endif
 	default:
