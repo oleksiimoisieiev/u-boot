@@ -1,6 +1,3 @@
-# Disable STATIC_RELA as it is broken with clang/llvm on arm64
-# CONFIG_STATIC_RELA is not set
-
 # Disable ARM64_CRC32 as it is broken with clang/llvm on arm64
 # CONFIG_ARM64_CRC32 is not set
 

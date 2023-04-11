@@ -138,9 +138,6 @@ CONFIG_DM_RNG=y
 # CONFIG_DISPLAY_BOARDINFO_LATE is not set
 CONFIG_SYS_CONSOLE_INFO_QUIET=y
 
-# Disable STATIC_RELA as it is broken with clang/llvm on arm64
-# CONFIG_STATIC_RELA is not set
-
 # Enable kernel cmdline to be passed in from VM manager
 CONFIG_ARCH_MISC_INIT=y
 
