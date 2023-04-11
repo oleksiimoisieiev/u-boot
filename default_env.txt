@@ -1,5 +1,5 @@
 bootcmd=virtio scan && if part number virtio 1 uboot_env uboot_env_part; then if env verified_import virtio 1#uboot_env; then echo "Imported supplementary environment"; else reset; fi; else echo "No supplementary environment"; fi && run uenvcmd || reset
 bootcmd_android=verified_boot_android virtio 0#misc
 uenvcmd=run bootcmd_android
-fastbootcmd=fastboot tcp
+fastbootcmd=fastboot tcp -ipv6 && boot
 android_keymint_needed=N
