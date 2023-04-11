@@ -30,6 +30,9 @@ static enum fastboot_tcp_state {
 	FASTBOOT_DISCONNECTING
 } state = FASTBOOT_CLOSED;
 
+static int command_handled_id;
+static bool command_handled_success;
+
 static void fastboot_tcp_answer(u8 action, unsigned int len)
 {
 	const u32 response_seq_num = curr_tcp_ack_num;
@@ -127,11 +130,18 @@ static void fastboot_tcp_handler(uchar *pkt, u16 dport, u16 sport,
 			strlcpy(command, pkt, len + 1);
 			fastboot_command_id = fastboot_handle_command(command, response);
 			fastboot_tcp_send_message(response, strlen(response));
-			fastboot_handle_boot(fastboot_command_id,
-					     strncmp("OKAY", response, 4) == 0);
+
+			command_handled_id = fastboot_command_id;
+			command_handled_success = strncmp("OKAY", response, 4) == 0;
 		}
 		break;
 	case FASTBOOT_DISCONNECTING:
+		if (command_handled_success) {
+			fastboot_handle_boot(command_handled_id, command_handled_success);
+			command_handled_id = 0;
+			command_handled_success = false;
+		}
+
 		if (tcp_push)
 			state = FASTBOOT_CLOSED;
 		break;
