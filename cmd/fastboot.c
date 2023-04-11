@@ -12,6 +12,7 @@
 #include <g_dnl.h>
 #include <fastboot.h>
 #include <net.h>
+#include <net6.h>
 #include <usb.h>
 #include <watchdog.h>
 #include <linux/stringify.h>
@@ -117,9 +118,22 @@ static int do_fastboot(struct cmd_tbl *cmdtp, int flag, int argc,
 {
 	uintptr_t buf_addr = (uintptr_t)NULL;
 	size_t buf_size = 0;
+	bool is_ipv6_only = false;
+	bool is_usb = false;
+	bool is_udp = false;
+	bool is_tcp = false;
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
+
+	if (IS_ENABLED(CONFIG_IPV6)) {
+		use_ip6 = false;
+		/* IPv6 parameter has to be always *last* */
+		if (!strcmp(argv[argc - 1], USE_IP6_CMD_PARAM)) {
+			is_ipv6_only = true;
+			--argc;
+		}
+	}
 
 	while (argc > 1 && **(argv + 1) == '-') {
 		char *arg = *++argv;
@@ -155,11 +169,19 @@ NXTARG:
 
 	fastboot_init((void *)buf_addr, buf_size);
 
-	if (!strcmp(argv[1], "udp"))
+	is_usb = strcmp(argv[1], "usb") == 0;
+	is_udp = strcmp(argv[1], "udp") == 0;
+	is_tcp = strcmp(argv[1], "tcp") == 0;
+
+	if (is_ipv6_only && is_tcp) {
+		use_ip6 = true;
+	}
+
+	if (is_udp)
 		return do_fastboot_udp(argc, argv, buf_addr, buf_size);
-	if (!strcmp(argv[1], "tcp"))
+	if (is_tcp)
 		return do_fastboot_tcp(argc, argv, buf_addr, buf_size);
-	if (!strcmp(argv[1], "usb")) {
+	if (is_usb) {
 		argv++;
 		argc--;
 	}
@@ -169,7 +191,7 @@ NXTARG:
 
 #ifdef CONFIG_SYS_LONGHELP
 static char fastboot_help_text[] =
-	"[-l addr] [-s size] usb <controller> | udp\n"
+	"[-l addr] [-s size] usb <controller> | udp | tcp [-ipv6]\n"
 	"\taddr - address of buffer used during data transfers ("
 	__stringify(CONFIG_FASTBOOT_BUF_ADDR) ")\n"
 	"\tsize - size of buffer used during data transfers ("
@@ -179,5 +201,5 @@ static char fastboot_help_text[] =
 
 U_BOOT_CMD(
 	fastboot, CONFIG_SYS_MAXARGS, 1, do_fastboot,
-	"run as a fastboot usb or udp device", fastboot_help_text
+	"run as a fastboot usb, udp or tcp device", fastboot_help_text
 );

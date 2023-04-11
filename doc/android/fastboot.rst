@@ -180,10 +180,16 @@ Enter into fastboot by executing the fastboot command in U-Boot for either USB::
 
    => fastboot usb 0
 
-or UDP::
+UDP::
 
    => fastboot udp
    link up on port 0, speed 100, full duplex
+   Using ethernet@4a100000 device
+   Listening for fastboot command on 192.168.0.102
+
+or TCP::
+
+   => fastboot tcp
    Using ethernet@4a100000 device
    Listening for fastboot command on 192.168.0.102
 
