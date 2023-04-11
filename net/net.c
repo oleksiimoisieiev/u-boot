@@ -352,10 +352,10 @@ static int net_init_loop(void)
 
 		if (IS_ENABLED(CONFIG_IPV6)) {
 			ip6_make_lladdr(&net_link_local_ip6, net_ethaddr);
-			if (!memcmp(&net_ip6, &net_null_addr_ip6,
-				    sizeof(struct in6_addr)))
-				memcpy(&net_ip6, &net_link_local_ip6,
-				       sizeof(struct in6_addr));
+			if (memcmp(&net_link_local_ip6, &net_null_addr_ip6,
+				    sizeof(struct in6_addr))) {
+				net_copy_ip6(&net_ip6, &net_link_local_ip6);
+			}
 		}
 	}
 	else
