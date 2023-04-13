@@ -47,7 +47,7 @@ kernel_build(
     outs = [
         "System.map",
         "u-boot",
-        "u-boot.bin",
+        "u-boot.rom",
     ],
     build_config = "build.config.crosvm.x86_64",
     deps = [
