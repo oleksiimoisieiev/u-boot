@@ -13,17 +13,6 @@ config ARM_PSCI_FW
 	bool
 	select FIRMWARE
 
-config KVM_HYP_SERVICES
-	bool "KVM hypervisor services"
-	depends on ARM_PSCI_FW
-	help
-	  When running inside a KVM guest, the hypervisor may provide
-	  hypercalls which are discoverable via the SMCCC feature probing
-	  mechanism.
-
-	  Say yes to enable support for discovering these services and making
-	  use of them where necessary.
-
 config TI_SCI_PROTOCOL
 	tristate "TI System Control Interface (TISCI) Message Protocol"
 	depends on K3_SEC_PROXY

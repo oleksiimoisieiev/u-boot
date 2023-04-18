@@ -51,20 +51,6 @@
 #define ARM_SMCCC_QUIRK_NONE		0
 #define ARM_SMCCC_QUIRK_QCOM_A6		1 /* Save/restore register a6 */
 
-#define ARM_SMCCC_VERSION_1_0		0x10000
-#define ARM_SMCCC_VERSION_1_1		0x10001
-#define ARM_SMCCC_VERSION_1_2		0x10002
-
-#define ARM_SMCCC_VERSION_FUNC_ID					\
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
-			   ARM_SMCCC_SMC_32,				\
-			   0, 0)
-
-#define ARM_SMCCC_ARCH_FEATURES_FUNC_ID					\
-	ARM_SMCCC_CALL_VAL(ARM_SMCCC_FAST_CALL,				\
-			   ARM_SMCCC_SMC_32,				\
-			   0, 1)
-
 /* KVM "vendor specific" services */
 #define ARM_SMCCC_KVM_FUNC_FEATURES		0
 #define ARM_SMCCC_KVM_FUNC_PTP			1
@@ -133,15 +119,6 @@
 			   ARM_SMCCC_SMC_64,			\
 			   ARM_SMCCC_OWNER_STANDARD,		\
 			   0x53)
-
-/*
- * Return codes defined in ARM DEN 0070A
- * ARM DEN 0070A is now merged/consolidated into ARM DEN 0028 C
- */
-#define SMCCC_RET_SUCCESS			0
-#define SMCCC_RET_NOT_SUPPORTED			-1
-#define SMCCC_RET_NOT_REQUIRED			-2
-#define SMCCC_RET_INVALID_PARAMETER		-3
 
 #define ARM_SMCCC_ARCH_FEATURES		0x80000001
 
