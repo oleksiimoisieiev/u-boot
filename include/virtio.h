@@ -94,11 +94,6 @@ struct virtio_sg {
 	size_t length;
 };
 
-struct virtio_iommu_platform_ops {
-	int (*map)(struct udevice *vdev, void *buf, u32 npages);
-	int (*unmap)(struct udevice *vdev, void *buf, u32 npages);
-};
-
 struct virtqueue;
 
 /* virtio bus operations */
