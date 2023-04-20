@@ -3,6 +3,8 @@
 # Can't build ATF image or SPL with ld.lld yet
 LD=aarch64-linux-androidkernel-ld
 
+SWIG_LIB=${ROOT_DIR}/external/swig/Lib
+
 # llvm-objcopy: error: unknown argument '--pad-to=8355840'
 OBJCOPY=aarch64-linux-androidkernel-objcopy
 
@@ -14,9 +16,9 @@ PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG
 "
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG}"
 
+BL31=${ROOT_DIR}/u-boot/bl31.elf
+
 MAKE_GOALS="
-BL31=${PWD}/u-boot/bl31.elf
-SWIG_LIB=${PWD}/external/swig/Lib
 "
 
 FILES="idbloader.img
@@ -24,3 +26,7 @@ u-boot
 u-boot.itb
 u-boot-rockchip.bin
 "
+
+# binman requires HOME to be set, but HOME is unset by Kleaf.
+# Hence manually set it to a fake value.
+HOME=${HOME:-/tmp/home}

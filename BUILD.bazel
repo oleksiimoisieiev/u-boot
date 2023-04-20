@@ -140,6 +140,26 @@ copy_to_dist_dir(
     flat = True,
 )
 
+kernel_build(
+    name = "rockpi4",
+    outs = [
+        "idbloader.img",
+        "u-boot.itb",
+    ],
+    build_config = "build.config.rockpi4",
+    deps = [
+        "//prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9:binaries",
+        "@swig//:lib",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "rockpi4_dist",
+    data = [":rockpi4"],
+    dist_dir = "out/u-boot-mainline/dist",
+    flat = True,
+)
+
 # Use SWIG enabled Python
 py_runtime_pair(
     name = "py_runtime_pair",
