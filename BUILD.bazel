@@ -43,6 +43,69 @@ copy_to_dist_dir(
 )
 
 kernel_build(
+    name = "kiwi",
+    outs = [
+        "System.map",
+        "u-boot",
+        "u-boot.rom",
+    ],
+    build_config = "build.config.kiwi",
+    deps = [
+        "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
+        "@swig//:lib",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "kiwi_dist",
+    data = [":kiwi"],
+    dist_dir = "out/u-boot/dist",
+    flat = True,
+)
+
+kernel_build(
+    name = "kiwi_p",
+    outs = [
+        "System.map",
+        "u-boot",
+        "u-boot.rom",
+    ],
+    build_config = "build.config.kiwi_p",
+    deps = [
+        "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
+        "@swig//:lib",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "kiwi_p_dist",
+    data = [":kiwi_p"],
+    dist_dir = "out/u-boot/dist",
+    flat = True,
+)
+
+kernel_build(
+    name = "qemu_x86_64",
+    outs = [
+        "System.map",
+        "u-boot",
+        "u-boot.rom",
+    ],
+    build_config = "build.config.qemu.x86_64",
+    deps = [
+        "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
+        "@swig//:lib",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "qemu_x86_64_dist",
+    data = [":qemu_x86_64"],
+    dist_dir = "out/u-boot/dist",
+    flat = True,
+)
+
+kernel_build(
     name = "crosvm_x86_64",
     outs = [
         "System.map",
