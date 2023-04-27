@@ -20,8 +20,14 @@
 static int do_fastboot_udp(int argc, char *const argv[],
 			   uintptr_t buf_addr, size_t buf_size)
 {
-#if CONFIG_IS_ENABLED(UDP_FUNCTION_FASTBOOT)
-	int err = net_loop(FASTBOOT_UDP);
+	int err;
+
+	if (!IS_ENABLED(CONFIG_UDP_FUNCTION_FASTBOOT)) {
+		pr_err("Fastboot UDP not enabled\n");
+		return CMD_RET_FAILURE;
+	}
+
+	err = net_loop(FASTBOOT_UDP);
 
 	if (err < 0) {
 		printf("fastboot udp error: %d\n", err);
@@ -29,10 +35,6 @@ static int do_fastboot_udp(int argc, char *const argv[],
 	}
 
 	return CMD_RET_SUCCESS;
-#else
-	pr_err("Fastboot UDP not enabled\n");
-	return CMD_RET_FAILURE;
-#endif
 }
 
 static int do_fastboot_tcp(int argc, char *const argv[],
@@ -56,11 +58,15 @@ static int do_fastboot_tcp(int argc, char *const argv[],
 static int do_fastboot_usb(int argc, char *const argv[],
 			   uintptr_t buf_addr, size_t buf_size)
 {
-#if CONFIG_IS_ENABLED(USB_FUNCTION_FASTBOOT)
 	int controller_index;
 	char *usb_controller;
 	char *endp;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_USB_FUNCTION_FASTBOOT)) {
+		pr_err("Fastboot USB not enabled\n");
+		return CMD_RET_FAILURE;
+	}
 
 	if (argc < 2)
 		return CMD_RET_USAGE;
@@ -107,10 +113,6 @@ exit:
 	g_dnl_clear_detach();
 
 	return ret;
-#else
-	pr_err("Fastboot USB not enabled\n");
-	return CMD_RET_FAILURE;
-#endif
 }
 
 static int do_fastboot(struct cmd_tbl *cmdtp, int flag, int argc,
