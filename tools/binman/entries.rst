@@ -762,9 +762,6 @@ Here is an example showing ATF, TEE and a device tree all combined::
 
                 atf-bl31 {
                 };
-                hash {
-                    algo = "sha256";
-                };
             };
 
             @tee-SEQ {
@@ -779,9 +776,6 @@ Here is an example showing ATF, TEE and a device tree all combined::
                 fit,data;
 
                 tee-os {
-                };
-                hash {
-                    algo = "sha256";
                 };
             };
         };
@@ -811,10 +805,6 @@ ELF file, for example::
             arch = "arm64";
             type = "firmware";
             description = "ARM Trusted Firmware";
-            hash {
-                algo = "sha256";
-                value = <...hash of first segment...>;
-            };
         };
         atf-2 {
             data = <...contents of second segment...>;
@@ -824,10 +814,6 @@ ELF file, for example::
             arch = "arm64";
             type = "firmware";
             description = "ARM Trusted Firmware";
-            hash {
-                algo = "sha256";
-                value = <...hash of second segment...>;
-            };
         };
     };
 
