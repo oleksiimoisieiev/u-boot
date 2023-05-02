@@ -156,8 +156,7 @@ class Entry_mkimage(Entry):
             for entry in self._mkimage_entries.values():
                 if not entry.ObtainContents(fake_size=fake_size):
                     return False
-                if entry._pathname:
-                    fnames.append(entry._pathname)
+                fnames.append(tools.get_input_filename(entry.GetDefaultFilename()))
             input_fname = ":".join(fnames)
         else:
             data, input_fname, uniq = self.collect_contents_to_file(
@@ -171,13 +170,6 @@ class Entry_mkimage(Entry):
                 return False
         outfile = self._filename if self._filename else 'mkimage-out.%s' % uniq
         output_fname = tools.get_output_filename(outfile)
-
-        missing_list = []
-        self.CheckMissing(missing_list)
-        self.missing = bool(missing_list)
-        if self.missing:
-            self.SetContents(b'')
-            return self.allow_missing
 
         args = ['-d', input_fname]
         if self._data_to_imagename:
@@ -223,20 +215,6 @@ class Entry_mkimage(Entry):
             entry.SetAllowFakeBlob(allow_fake)
         if self._imagename:
             self._imagename.SetAllowFakeBlob(allow_fake)
-
-    def CheckMissing(self, missing_list):
-        """Check if any entries in this section have missing external blobs
-
-        If there are missing (non-optional) blobs, the entries are added to the
-        list
-
-        Args:
-            missing_list: List of Entry objects to be added to
-        """
-        for entry in self._mkimage_entries.values():
-            entry.CheckMissing(missing_list)
-        if self._imagename:
-            self._imagename.CheckMissing(missing_list)
 
     def CheckFakedBlobs(self, faked_blobs_list):
         """Check if any entries in this section have faked external blobs
