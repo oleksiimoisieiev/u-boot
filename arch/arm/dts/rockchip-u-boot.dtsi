@@ -93,7 +93,7 @@
 				@config-SEQ {
 					description = "NAME.dtb";
 					fdt = "fdt-SEQ";
-					fit,firmware = "atf-1", "u-boot";
+					firmware = "u-boot";
 					fit,loadables;
 				};
 			};
