@@ -3,3 +3,7 @@ CONFIG_AVB_BUF_ADDR=0
 
 # Disable ARM64_CRC32 as it is broken with clang/llvm on arm64
 # CONFIG_ARM64_CRC32 is not set
+
+# Disable BOOTSTD configs, they are default enabled on qemu_arm32/64
+# CONFIG_BOOTSTD_FULL is not set
+# CONFIG_BOOTSTD_DEFAULTS is not set

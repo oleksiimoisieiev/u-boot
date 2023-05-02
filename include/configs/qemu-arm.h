@@ -6,8 +6,6 @@
 #ifndef __CONFIG_H
 #define __CONFIG_H
 
-#include <linux/sizes.h>
-
 /* Physical memory map */
 
 #define FDT_ADDR			CONFIG_SYS_FDT_ADDR

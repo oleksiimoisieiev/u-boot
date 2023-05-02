@@ -20,6 +20,10 @@ SECTIONS
 		*(.rodata*)
 		. = ALIGN(512);
 	}
+	.rela.dyn : { *(.rela.dyn) }
+	.rela.plt : { *(.rela.plt) }
+	.rela.got : { *(.rela.got) }
+	.rela.data : { *(.rela.data) *(.rela.data*) }
 	_etext = .;
 	_text_size = . - _text;
 	.dynamic  : { *(.dynamic) }

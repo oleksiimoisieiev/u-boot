@@ -4,3 +4,4 @@ obj-$(CONFIG_AUTOBOOT) += test_autoboot.o
 obj-$(CONFIG_AVB_VERIFY) += avb_verify.o
 obj-$(CONFIG_CYCLIC) += cyclic.o
 obj-$(CONFIG_EVENT) += event.o
+obj-y += cread.o
