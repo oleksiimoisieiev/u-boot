@@ -49,6 +49,7 @@ kernel_build(
         "u-boot",
         "u-boot.rom",
     ],
+    arch = "x86_64",
     build_config = "build.config.kiwi",
     deps = [
         "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
@@ -70,6 +71,7 @@ kernel_build(
         "u-boot",
         "u-boot.rom",
     ],
+    arch = "x86_64",
     build_config = "build.config.kiwi_p",
     deps = [
         "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
@@ -91,6 +93,7 @@ kernel_build(
         "u-boot",
         "u-boot.rom",
     ],
+    arch = "x86_64",
     build_config = "build.config.qemu.x86_64",
     deps = [
         "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
@@ -112,6 +115,7 @@ kernel_build(
         "u-boot",
         "u-boot.rom",
     ],
+    arch = "x86_64",
     build_config = "build.config.crosvm.x86_64",
     deps = [
         "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
@@ -173,6 +177,7 @@ kernel_build(
         "u-boot",
         "u-boot.bin",
     ],
+    # TODO(b/272164611): Set arch = "arm" once we have set up arm toolchain
     build_config = "build.config.qemu.arm",
     deps = [
         "//prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9:binaries",
@@ -193,6 +198,7 @@ kernel_build(
         "u-boot",
         "u-boot.bin",
     ],
+    arch = "riscv64",
     build_config = "build.config.qemu.riscv64",
 )
 
