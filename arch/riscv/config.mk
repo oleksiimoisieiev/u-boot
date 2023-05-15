@@ -27,8 +27,10 @@ CONFIG_STANDALONE_LOAD_ADDR ?= 0x00000000
 
 ifeq ($(cc-name),clang)
 PLATFORM_CPPFLAGS	+= -mno-relax
+else
+PLATFORM_CPPFLAGS	+= -ffixed-gp
 endif
-PLATFORM_CPPFLAGS	+= -ffixed-gp -fpic
+PLATFORM_CPPFLAGS	+= -fpic
 PLATFORM_RELFLAGS	+= -fno-common -gdwarf-2 -ffunction-sections \
 			   -fdata-sections
 LDFLAGS_u-boot		+= --gc-sections -static -pie
