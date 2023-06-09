@@ -177,7 +177,7 @@ kernel_build(
         "u-boot",
         "u-boot.bin",
     ],
-    # TODO(b/272164611): Set arch = "arm" once we have set up arm toolchain
+    arch = "arm",
     build_config = "build.config.qemu.arm",
     deps = [
         "//prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9:binaries",
