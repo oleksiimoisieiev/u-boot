@@ -96,16 +96,22 @@ int __weak fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 		[FASTBOOT_REBOOT_REASON_FASTBOOTD] = "boot-fastboot",
 		[FASTBOOT_REBOOT_REASON_RECOVERY] = "boot-recovery"
 	};
-	const int mmc_dev = config_opt_enabled(CONFIG_FASTBOOT_FLASH_MMC,
-					       CONFIG_FASTBOOT_FLASH_MMC_DEV, -1);
+	int device = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT,
+					CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_ID, -1);
+	if (device == -1) {
+		device = config_opt_enabled(CONFIG_FASTBOOT_FLASH_MMC,
+					    CONFIG_FASTBOOT_FLASH_MMC_DEV, -1);
+	}
+	char *bcb_iface = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT,
+					     CONFIG_FASTBOOT_FLASH_BLOCK_INTERFACE_NAME, "mmc");
 
-	if (!IS_ENABLED(CONFIG_FASTBOOT_FLASH_MMC))
+	if (device == -1)
 		return -EINVAL;
 
 	if (reason >= FASTBOOT_REBOOT_REASONS_COUNT)
 		return -EINVAL;
 
-	return bcb_write_reboot_reason("mmc", mmc_dev, "misc", boot_cmds[reason]);
+	return bcb_write_reboot_reason(bcb_iface, device, "misc", boot_cmds[reason]);
 }
 
 /**
