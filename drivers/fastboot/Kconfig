@@ -181,6 +181,23 @@ config FASTBOOT_MMC_USER_NAME
 	  defined here.
 	  The default target name for erasing EMMC_USER is "mmc0".
 
+config FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT
+	bool "FASTBOOT on various block devices (virtio, mmc, etc) is enabled"
+	help
+	  "Fastboot flashing block devices supported"
+
+config FASTBOOT_FLASH_BLOCK_INTERFACE_NAME
+	string "Define FASTBOOT block interface name"
+	depends on FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT
+	help
+	  "Fastboot block interface name (mmc, virtio, etc)"
+
+config FASTBOOT_FLASH_BLOCK_DEVICE_ID
+	int "Define FASTBOOT block device id"
+	depends on FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT
+	help
+	  "Fastboot block device id"
+
 config FASTBOOT_GPT_NAME
 	string "Target name for updating GPT"
 	depends on FASTBOOT_FLASH_MMC && EFI_PARTITION
