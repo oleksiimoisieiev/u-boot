@@ -5,7 +5,6 @@
  * Command to read/modify/write Android BCB fields
  */
 
-#include <android_bootloader_message.h>
 #include <bcb.h>
 #include <command.h>
 #include <common.h>
@@ -25,10 +24,11 @@ enum bcb_cmd {
 	BCB_CMD_STORE,
 };
 
-static enum uclass_id bcb_uclass_id = UCLASS_INVALID;
-static int bcb_dev = -1;
-static int bcb_part = -1;
 static struct bootloader_message bcb __aligned(ARCH_DMA_MINALIGN) = { { 0 } };
+static struct disk_partition partition_data;
+
+static struct blk_desc *block;
+static struct disk_partition *partition = &partition_data;
 
 static int bcb_cmd_get(char *cmd)
 {
@@ -82,7 +82,7 @@ static int bcb_is_misused(int argc, char *const argv[])
 		return -1;
 	}
 
-	if (cmd != BCB_CMD_LOAD && (bcb_dev < 0 || bcb_part < 0)) {
+	if (cmd != BCB_CMD_LOAD && (block == NULL)) {
 		printf("Error: Please, load BCB first!\n");
 		return -1;
 	}
@@ -119,16 +119,21 @@ static int bcb_field_get(char *name, char **fieldp, int *sizep)
 	return 0;
 }
 
-static int __bcb_load(const char* iface, int devnum, const char *partp)
+static void __bcb_reset(void)
 {
-	struct blk_desc *desc;
-	struct disk_partition info;
-	u64 cnt;
+	block = NULL;
+	partition = &partition_data;
+	memset(&partition_data, 0, sizeof(struct disk_partition));
+	memset(&bcb, 0, sizeof(struct bootloader_message));
+}
+
+static int __bcb_initialize(const char* iface, int devnum, const char *partp)
+{
 	char *endp;
 	int part, ret;
 
-	desc = blk_get_dev(iface, devnum);
-	if (!desc) {
+	block = blk_get_dev(iface, devnum);
+	if (!block) {
 		ret = -ENODEV;
 		goto err_read_fail;
 	}
@@ -137,7 +142,7 @@ static int __bcb_load(const char* iface, int devnum, const char *partp)
 	 * always select the first hwpart in case another
 	 * blk operation selected a different hwpart
 	 */
-	ret = blk_dselect_hwpart(desc, 0);
+	ret = blk_dselect_hwpart(block, 0);
 	if (IS_ERR_VALUE(ret)) {
 		ret = -ENODEV;
 		goto err_read_fail;
@@ -145,49 +150,67 @@ static int __bcb_load(const char* iface, int devnum, const char *partp)
 
 	part = simple_strtoul(partp, &endp, 0);
 	if (*endp == '\0') {
-		ret = part_get_info(desc, part, &info);
+		ret = part_get_info(block, part, partition);
 		if (ret)
 			goto err_read_fail;
 	} else {
-		part = part_get_info_by_name(desc, partp, &info);
+		part = part_get_info_by_name(block, partp, partition);
 		if (part < 0) {
 			ret = part;
 			goto err_read_fail;
 		}
 	}
 
-	cnt = DIV_ROUND_UP(sizeof(struct bootloader_message), info.blksz);
-	if (cnt > info.size)
+	return CMD_RET_SUCCESS;
+
+err_read_fail:
+	printf("Error: %d %d:%s read failed (%d)\n", block->uclass_id,
+						     block->devnum,
+						     partition->name, ret);
+	goto err;
+err:
+	__bcb_reset();
+	return CMD_RET_FAILURE;
+}
+
+static int __bcb_load(void)
+{
+	u64 cnt;
+	int ret;
+
+	cnt = DIV_ROUND_UP(sizeof(struct bootloader_message), partition->blksz);
+	if (cnt > partition->size)
 		goto err_too_small;
 
-	if (blk_dread(desc, info.start, cnt, &bcb) != cnt) {
+	if (blk_dread(block, partition->start, cnt, &bcb) != cnt) {
 		ret = -EIO;
 		goto err_read_fail;
 	}
 
-	bcb_uclass_id = desc->uclass_id;
-	bcb_dev = desc->devnum;
-	bcb_part = part;
-	debug("%s: Loaded from %s %d:%d\n", __func__, iface, bcb_dev, bcb_part);
+	debug("%s: Loaded from %d %d:%s\n", __func__, block->uclass_id,
+						      block->devnum,
+						      partition->name);
 
 	return CMD_RET_SUCCESS;
 err_read_fail:
-	printf("Error: %s %d:%s read failed (%d)\n", iface, devnum, partp, ret);
+	printf("Error: %d %d:%s read failed (%d)\n", block->uclass_id,
+						     block->devnum,
+						     partition->name, ret);
 	goto err;
 err_too_small:
-	printf("Error: %s %d:%s too small!", iface, devnum, partp);
+	printf("Error: %d %d:%s too small!", block->uclass_id,
+					     block->devnum,
+					     partition->name);
 	goto err;
 err:
-	bcb_uclass_id = UCLASS_INVALID;
-	bcb_dev = -1;
-	bcb_part = -1;
-
+	__bcb_reset();
 	return CMD_RET_FAILURE;
 }
 
 static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
+	int ret;
 	int devnum;
 	char *endp;
 	char *iface = "mcc";
@@ -203,7 +226,11 @@ static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
 		return CMD_RET_FAILURE;
 	}
 
-	return __bcb_load(iface, devnum, argv[2]);
+	ret = __bcb_initialize(iface, devnum, argv[2]);
+	if (ret != CMD_RET_SUCCESS)
+		return ret;
+
+	return __bcb_load();
 }
 
 static int __bcb_set(char *fieldp, const char *valp)
@@ -306,31 +333,21 @@ static int do_bcb_dump(struct cmd_tbl *cmdtp, int flag, int argc,
 
 static int __bcb_store(void)
 {
-	struct blk_desc *desc;
-	struct disk_partition info;
 	u64 cnt;
 	int ret;
 
-	desc = blk_get_devnum_by_uclass_id(bcb_uclass_id, bcb_dev);
-	if (!desc) {
-		ret = -ENODEV;
-		goto err;
-	}
+	cnt = DIV_ROUND_UP(sizeof(struct bootloader_message), partition->blksz);
 
-	ret = part_get_info(desc, bcb_part, &info);
-	if (ret)
-		goto err;
-
-	cnt = DIV_ROUND_UP(sizeof(struct bootloader_message), info.blksz);
-
-	if (blk_dwrite(desc, info.start, cnt, &bcb) != cnt) {
+	if (blk_dwrite(block, partition->start, cnt, &bcb) != cnt) {
 		ret = -EIO;
 		goto err;
 	}
 
 	return CMD_RET_SUCCESS;
 err:
-	printf("Error: %d %d:%d write failed (%d)\n", bcb_uclass_id, bcb_dev, bcb_part, ret);
+	printf("Error: %d %d:%s write failed (%d)\n", block->uclass_id,
+						      block->devnum,
+						      partition->name, ret);
 
 	return CMD_RET_FAILURE;
 }
@@ -345,7 +362,13 @@ int bcb_write_reboot_reason(const char* iface, int devnum, char *partp, const ch
 {
 	int ret;
 
-	ret = __bcb_load(iface, devnum, partp);
+	__bcb_reset();
+
+	ret = __bcb_initialize(iface, devnum, partp);
+	if (ret != CMD_RET_SUCCESS)
+		return ret;
+
+	ret = __bcb_load();
 	if (ret != CMD_RET_SUCCESS)
 		return ret;
 
@@ -357,7 +380,36 @@ int bcb_write_reboot_reason(const char* iface, int devnum, char *partp, const ch
 	if (ret != CMD_RET_SUCCESS)
 		return ret;
 
+	__bcb_reset();
+
 	return 0;
+}
+
+struct bootloader_message* bcb_load(struct blk_desc *block_description,
+	     			    struct disk_partition *disk_partition)
+{
+	int ret;
+
+	__bcb_reset();
+
+	block = block_description;
+	partition = disk_partition;
+
+	ret = __bcb_load();
+	if (ret != CMD_RET_SUCCESS)
+		return NULL;
+
+	return &bcb;
+}
+
+int bcb_store(void)
+{
+	return __bcb_store();
+}
+
+void bcb_reset(void)
+{
+	__bcb_reset();
 }
 
 static struct cmd_tbl cmd_bcb_sub[] = {
