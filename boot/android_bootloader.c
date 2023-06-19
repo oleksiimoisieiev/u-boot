@@ -9,6 +9,7 @@
 
 #include <android_bootloader_keymint.h>
 #include <android_ab.h>
+#include <bcb.h>
 #include <cli.h>
 #include <common.h>
 #include <dm/device.h>
@@ -34,53 +35,12 @@
 
 #define ANDROID_NORMAL_BOOT "androidboot.force_normal_boot=1"
 
-static int android_bootloader_message_load(
-	struct blk_desc *dev_desc,
-	const struct disk_partition *part_info,
-	struct bootloader_message *message)
-{
-	ulong message_blocks = sizeof(struct bootloader_message) /
-	    part_info->blksz;
-	if (message_blocks > part_info->size) {
-		printf("misc partition too small.\n");
-		return -1;
-	}
-
-	if (blk_dread(dev_desc, part_info->start, message_blocks, message) !=
-	    message_blocks) {
-		printf("Could not read from misc partition\n");
-		return -1;
-	}
-	debug("ANDROID: Loaded BCB, %lu blocks.\n", message_blocks);
-	return 0;
-}
-
-static int android_bootloader_message_write(
-	struct blk_desc *dev_desc,
-	const struct disk_partition *part_info,
-	struct bootloader_message *message)
-{
-	ulong message_blocks = sizeof(struct bootloader_message) /
-	    part_info->blksz;
-	if (message_blocks > part_info->size) {
-		printf("misc partition too small.\n");
-		return -1;
-	}
-
-	if (blk_dwrite(dev_desc, part_info->start, message_blocks, message) !=
-	    message_blocks) {
-		printf("Could not write to misc partition\n");
-		return -1;
-	}
-	debug("ANDROID: Wrote new BCB, %lu blocks.\n", message_blocks);
-	return 0;
-}
-
 static enum android_boot_mode android_bootloader_load_and_clear_mode(
 	struct blk_desc *dev_desc,
-	const struct disk_partition *misc_part_info)
+	struct disk_partition *misc_part_info)
 {
-	struct bootloader_message bcb;
+	enum android_boot_mode ret = ANDROID_BOOT_MODE_NORMAL;
+	struct bootloader_message *bcb;
 
 #ifdef CONFIG_FASTBOOT
 	char *bootloader_str;
@@ -94,27 +54,30 @@ static enum android_boot_mode android_bootloader_load_and_clear_mode(
 	}
 #endif
 
-	/* Check and update the BCB message if needed. */
-	if (android_bootloader_message_load(dev_desc, misc_part_info, &bcb) <
-	    0) {
+	bcb = bcb_load(dev_desc, misc_part_info);
+	if (bcb == NULL) {
 		printf("WARNING: Unable to load the BCB.\n");
-		return ANDROID_BOOT_MODE_NORMAL;
+		goto out;
 	}
 
-	if (!strcmp("bootonce-bootloader", bcb.command)) {
+	if (!strcmp("bootonce-bootloader", bcb->command)) {
 		/* Erase the message in the BCB since this value should be used
 		 * only once.
 		 */
-		memset(bcb.command, 0, sizeof(bcb.command));
-		android_bootloader_message_write(dev_desc, misc_part_info,
-						 &bcb);
-		return ANDROID_BOOT_MODE_BOOTLOADER;
+		memset(bcb->command, 0, sizeof(bcb->command));
+		if (bcb_store())
+			printf("WARNING: Unable to clear BCB state for bootonce-bootloader.\n");
+
+		ret = ANDROID_BOOT_MODE_BOOTLOADER;
+		goto out;
 	}
 
-	if (!strcmp("boot-recovery", bcb.command))
-		return ANDROID_BOOT_MODE_RECOVERY;
+	if (!strcmp("boot-recovery", bcb->command))
+		ret = ANDROID_BOOT_MODE_RECOVERY;
 
-	return ANDROID_BOOT_MODE_NORMAL;
+out:
+	bcb_reset();
+	return ret;
 }
 
 /**
@@ -495,7 +458,7 @@ out:
 int android_bootloader_boot_flow(const char* iface_str,
 				 const char* dev_str,
 				 struct blk_desc *dev_desc,
-				 const struct disk_partition *misc_part_info,
+				 struct disk_partition *misc_part_info,
 				 const char *slot,
 				 bool verify,
 				 unsigned long kernel_address,

@@ -56,5 +56,8 @@ CONFIG_BOOTDELAY=-2
 CONFIG_CMDLINE_EDITING=y
 CONFIG_SYS_LONGHELP=y
 
+# Used by Android boot loader and fastboot
+CONFIG_CMD_BCB=y
+
 # Must not use RNG from host.
 # CONFIG_VIRTIO_RNG is not set
