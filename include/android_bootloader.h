@@ -48,7 +48,7 @@ struct disk_partition;
 int android_bootloader_boot_flow(const char *iface_str,
 				 const char *dev_str,
 				 struct blk_desc *dev_desc,
-				 const struct disk_partition *misc_part_info,
+				 struct disk_partition *misc_part_info,
 				 const char *slot,
 				 bool verify,
 				 unsigned long kernel_address,
