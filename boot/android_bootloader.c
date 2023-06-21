@@ -422,6 +422,7 @@ static int do_avb_verify(const char *iface,
 	 * When the sum of their sizes exceed 64MB, each partition is loaded into a dedicated 64MB
 	 * region for safe distancing during the relocation. */
 	if (requested_partitions == NULL) {
+		size_t size;
 		size_t boot_size = get_partition_size(ops, "boot", slot_suffix);
 		size_t vendor_boot_size = get_partition_size(ops, "vendor_boot", slot_suffix);
 		size_t init_boot_size = get_partition_size(ops, "init_boot", slot_suffix);
@@ -429,7 +430,8 @@ static int do_avb_verify(const char *iface,
 		data->slot_suffix = slot_suffix;
 		data->boot.addr = kernel_address;
 		data->boot.size = 0; // 0 indicates that it hasn't yet been preloaded.
-		data->vendor_boot.addr = data->boot.addr + (packed ? boot_size : SZ_64M);
+		size = IS_ENABLED(CONFIG_X86) ? SZ_128M : SZ_64M;
+		data->vendor_boot.addr = data->boot.addr + (packed ? boot_size : size);
 		data->vendor_boot.size = 0;
 		if (init_boot_size != 0) {
 			data->init_boot.addr = data->vendor_boot.addr + (packed ? vendor_boot_size : SZ_64M);
