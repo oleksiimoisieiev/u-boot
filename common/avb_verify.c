@@ -4,6 +4,7 @@
  * SPDX-License-Identifier:	GPL-2.0+
  */
 
+#include <android_bootloader_oemlock.h>
 #include <avb_verify.h>
 #include <blk.h>
 #include <cpu_func.h>
@@ -654,19 +655,10 @@ static AvbIOResult write_rollback_index(AvbOps *ops,
  */
 static AvbIOResult read_is_device_unlocked(AvbOps *ops, bool *out_is_unlocked)
 {
-#ifndef CONFIG_OPTEE_TA_AVB
-	/* For now we always return that the device is unlocked. */
-
-	printf("%s not supported yet\n", __func__);
-
-#ifdef CONFIG_AVB_IS_UNLOCKED
+#if defined(CONFIG_AVB_IS_UNLOCKED)
 	*out_is_unlocked = true;
-#else
-	*out_is_unlocked = false;
-#endif
-
 	return AVB_IO_RESULT_OK;
-#else
+#elif defined(CONFIG_OPTEE_TA_AVB)
 	AvbIOResult rc;
 	struct tee_param param = { .attr = TEE_PARAM_ATTR_TYPE_VALUE_OUTPUT };
 
@@ -674,6 +666,17 @@ static AvbIOResult read_is_device_unlocked(AvbOps *ops, bool *out_is_unlocked)
 	if (rc)
 		return rc;
 	*out_is_unlocked = !param.u.value.a;
+	return AVB_IO_RESULT_OK;
+#elif defined(CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE)
+	int locked = oemlock_is_locked();
+	if (locked < 0) {
+		*out_is_unlocked = false;
+		return AVB_IO_RESULT_ERROR_IO;
+	}
+	*out_is_unlocked = locked == 0;
+	return AVB_IO_RESULT_OK;
+#else
+	*out_is_unlocked = false;
 	return AVB_IO_RESULT_OK;
 #endif
 }

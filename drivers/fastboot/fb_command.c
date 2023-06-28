@@ -3,6 +3,7 @@
  * Copyright (C) 2016 The Android Open Source Project
  */
 
+#include <android_bootloader_oemlock.h>
 #include <common.h>
 #include <command.h>
 #include <env.h>
@@ -41,6 +42,8 @@ static void oem_partconf(char *, char *);
 static void oem_bootbus(char *, char *);
 static void run_ucmd(char *, char *);
 static void run_acmd(char *, char *);
+static void run_flashing_lock(char *, char *);
+static void run_flashing_unlock(char *, char *);
 
 static const struct {
 	const char *command;
@@ -113,6 +116,14 @@ static const struct {
 	[FASTBOOT_COMMAND_ACMD] = {
 		.command = "ACmd",
 		.dispatch = CONFIG_IS_ENABLED(FASTBOOT_UUU_SUPPORT, (run_acmd), (NULL))
+	},
+	[FASTBOOT_COMMAND_FLASHING_LOCK] = {
+		.command = "flashing lock",
+		.dispatch = run_flashing_lock
+	},
+	[FASTBOOT_COMMAND_FLASHING_UNLOCK] = {
+		.command = "flashing unlock",
+		.dispatch = run_flashing_unlock
 	},
 };
 
@@ -488,4 +499,50 @@ static void __maybe_unused oem_bootbus(char *cmd_parameter, char *response)
 		fastboot_fail("Cannot set oem bootbus", response);
 	else
 		fastboot_okay(NULL, response);
+}
+
+static void run_flashing_lock(char *cmd_parameter, char *response)
+{
+#ifdef CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE
+	int set_locked_result = oemlock_set_locked(true);
+	if (set_locked_result < 0) {
+		fastboot_fail("Couldn't lock the device due to TEE error", response);
+		return;
+	}
+
+	if (fastboot_set_reboot_flag(FASTBOOT_REBOOT_REASON_RECOVERY_WIPE))
+		fastboot_fail("Cannot set reboot flag to wipe the device", response);
+	else
+		fastboot_okay(NULL, response);
+#else
+	fastboot_fail("Not implemented", response);
+#endif
+}
+
+static void run_flashing_unlock(char *cmd_parameter, char *response)
+{
+#ifdef CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE
+	int locking_allowed_result = oemlock_is_allowed();
+	if (locking_allowed_result < 0) {
+		fastboot_fail("Couldn't unlock the device due to TEE error", response);
+		return;
+	}
+	if (locking_allowed_result == 0) {
+		fastboot_fail("Device is not allowed to be locked", response);
+		return;
+	}
+
+	int set_locked_result = oemlock_set_locked(false);
+	if (set_locked_result < 0) {
+		fastboot_fail("Couldn't unlock the device due to TEE error", response);
+		return;
+	}
+
+	if (fastboot_set_reboot_flag(FASTBOOT_REBOOT_REASON_RECOVERY_WIPE))
+		fastboot_fail("Cannot set reboot flag to wipe the device", response);
+	else
+		fastboot_okay(NULL, response);
+#else
+	fastboot_fail("Not implemented", response);
+#endif
 }
