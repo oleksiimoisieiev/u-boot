@@ -8,7 +8,6 @@ PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG
     ${ROOT_DIR}/${KERNEL_DIR}/qemu-minimal.fragment
     ${ROOT_DIR}/${KERNEL_DIR}/x86.fragment
     ${ROOT_DIR}/${KERNEL_DIR}/cuttlefish.fragment
-    ${ROOT_DIR}/${KERNEL_DIR}/avb_unlocked.fragment
 "
 POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/configs/${DEFCONFIG}"
 

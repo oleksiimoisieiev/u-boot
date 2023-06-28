@@ -16,7 +16,7 @@ enum oemlock_field {
 	LOCKED,
 };
 
-static const char console_name[] = "virtio-console#12";
+static const char console_name[] = CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_NAME;
 
 static struct udevice* get_console(void)
 {

@@ -621,6 +621,13 @@ config ANDROID_BOOTLOADER_OEMLOCK_CONSOLE
 	  configuration will only take effect only if both
 	  CONFIG_AVB_IS_UNLOCKED and CONFIG_OPTEE_TA_AVB are disabled.
 
+config ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_NAME
+	string "Android Bootloader Oemlock console name"
+	depends on ANDROID_BOOTLOADER_OEMLOCK_CONSOLE
+	help
+	  String name that will be used to find device by name in
+	  serial uclass. Example value: "virtio-console#12"
+
 config ANDROID_BOOTLOADER_KEYMINT_CONSOLE
 	bool "Support for Android Bootloader Keymint initialization"
 	default n
