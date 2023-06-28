@@ -528,7 +528,7 @@ static void run_flashing_unlock(char *cmd_parameter, char *response)
 		return;
 	}
 	if (locking_allowed_result == 0) {
-		fastboot_fail("Device is not allowed to be locked", response);
+		fastboot_fail("Device is not allowed to be unlocked", response);
 		return;
 	}
 
