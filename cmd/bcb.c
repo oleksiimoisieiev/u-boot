@@ -5,15 +5,16 @@
  * Command to read/modify/write Android BCB fields
  */
 
+#include <android_bootloader_message.h>
 #include <bcb.h>
 #include <command.h>
 #include <common.h>
 #include <display_options.h>
+#include <linux/err.h>
 #include <log.h>
-#include <part.h>
 #include <malloc.h>
 #include <memalign.h>
-#include <linux/err.h>
+#include <part.h>
 
 enum bcb_cmd {
 	BCB_CMD_LOAD,
@@ -22,6 +23,13 @@ enum bcb_cmd {
 	BCB_CMD_FIELD_TEST,
 	BCB_CMD_FIELD_DUMP,
 	BCB_CMD_STORE,
+};
+
+static const char* fields[] = {
+	"command",
+	"status",
+	"recovery",
+	"stage"
 };
 
 static struct bootloader_message bcb __aligned(ARCH_DMA_MINALIGN) = { { 0 } };
@@ -94,7 +102,7 @@ err:
 	return -1;
 }
 
-static int bcb_field_get(char *name, char **fieldp, int *sizep)
+static int bcb_field_get(const char *name, char **fieldp, int *sizep)
 {
 	if (!strcmp(name, "command")) {
 		*fieldp = bcb.command;
@@ -233,7 +241,7 @@ static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	return __bcb_load();
 }
 
-static int __bcb_set(char *fieldp, const char *valp)
+static int __bcb_set(const char *fieldp, const char *valp)
 {
 	int size, len;
 	char *field, *str, *found, *tmp;
@@ -358,7 +366,7 @@ static int do_bcb_store(struct cmd_tbl *cmdtp, int flag, int argc,
 	return __bcb_store();
 }
 
-int bcb_write_reboot_reason(const char* iface, int devnum, char *partp, const char *reasonp)
+int bcb_find_partition_and_load(const char *iface, int devnum, char *partp)
 {
 	int ret;
 
@@ -368,38 +376,36 @@ int bcb_write_reboot_reason(const char* iface, int devnum, char *partp, const ch
 	if (ret != CMD_RET_SUCCESS)
 		return ret;
 
-	ret = __bcb_load();
-	if (ret != CMD_RET_SUCCESS)
-		return ret;
-
-	ret = __bcb_set("command", reasonp);
-	if (ret != CMD_RET_SUCCESS)
-		return ret;
-
-	ret = __bcb_store();
-	if (ret != CMD_RET_SUCCESS)
-		return ret;
-
-	__bcb_reset();
-
-	return 0;
+	return __bcb_load();
 }
 
-struct bootloader_message* bcb_load(struct blk_desc *block_description,
-	     			    struct disk_partition *disk_partition)
+int bcb_load(struct blk_desc *block_description, struct disk_partition *disk_partition)
 {
-	int ret;
-
 	__bcb_reset();
 
 	block = block_description;
 	partition = disk_partition;
 
-	ret = __bcb_load();
-	if (ret != CMD_RET_SUCCESS)
-		return NULL;
+	return __bcb_load();
+}
 
-	return &bcb;
+int bcb_set(enum bcb_field field, const char *value)
+{
+	if (field > BCB_FIELD_STAGE) return CMD_RET_FAILURE;
+	return __bcb_set(fields[field], value);
+}
+
+int bcb_get(enum bcb_field field, char *value_out, size_t value_size)
+{
+	int size;
+	char *field_value;
+
+	if (field > BCB_FIELD_STAGE) return CMD_RET_FAILURE;
+	if (bcb_field_get(fields[field], &field_value, &size)) return CMD_RET_FAILURE;
+
+	strlcpy(value_out, field_value, value_size);
+
+	return CMD_RET_SUCCESS;
 }
 
 int bcb_store(void)

@@ -91,11 +91,20 @@ void fastboot_okay(const char *reason, char *response)
  */
 int __weak fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 {
-	static const char * const boot_cmds[] = {
+	int ret;
+	static const char * const commands[] = {
 		[FASTBOOT_REBOOT_REASON_BOOTLOADER] = "bootonce-bootloader",
 		[FASTBOOT_REBOOT_REASON_FASTBOOTD] = "boot-fastboot",
-		[FASTBOOT_REBOOT_REASON_RECOVERY] = "boot-recovery"
+		[FASTBOOT_REBOOT_REASON_RECOVERY] = "boot-recovery",
+		[FASTBOOT_REBOOT_REASON_RECOVERY_WIPE] = "boot-recovery"
 	};
+	static const char * const recovery[] = {
+		[FASTBOOT_REBOOT_REASON_BOOTLOADER] = "",
+		[FASTBOOT_REBOOT_REASON_FASTBOOTD] = "",
+		[FASTBOOT_REBOOT_REASON_RECOVERY] = "",
+		[FASTBOOT_REBOOT_REASON_RECOVERY_WIPE] = "recovery\n--wipe_data"
+	};
+
 	int device = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT,
 					CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_ID, -1);
 	if (device == -1) {
@@ -111,7 +120,19 @@ int __weak fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 	if (reason >= FASTBOOT_REBOOT_REASONS_COUNT)
 		return -EINVAL;
 
-	return bcb_write_reboot_reason(bcb_iface, device, "misc", boot_cmds[reason]);
+	ret = bcb_find_partition_and_load(bcb_iface, device, "misc");
+	if (ret) goto out;
+
+	ret = bcb_set(BCB_FIELD_COMMAND, commands[reason]);
+	if (ret) goto out;
+
+	ret = bcb_set(BCB_FIELD_RECOVERY, recovery[reason]);
+	if (ret) goto out;
+
+	ret = bcb_store();
+out:
+	bcb_reset();
+	return ret;
 }
 
 /**

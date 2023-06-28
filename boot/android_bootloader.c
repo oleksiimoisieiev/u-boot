@@ -5,7 +5,6 @@
  */
 
 #include <android_bootloader.h>
-#include <android_bootloader_message.h>
 
 #include <android_bootloader_keymint.h>
 #include <android_ab.h>
@@ -40,7 +39,7 @@ static enum android_boot_mode android_bootloader_load_and_clear_mode(
 	struct disk_partition *misc_part_info)
 {
 	enum android_boot_mode ret = ANDROID_BOOT_MODE_NORMAL;
-	struct bootloader_message *bcb;
+	char bcb_command[32];
 
 #ifdef CONFIG_FASTBOOT
 	char *bootloader_str;
@@ -54,25 +53,32 @@ static enum android_boot_mode android_bootloader_load_and_clear_mode(
 	}
 #endif
 
-	bcb = bcb_load(dev_desc, misc_part_info);
-	if (bcb == NULL) {
+	if (bcb_load(dev_desc, misc_part_info)) {
 		printf("WARNING: Unable to load the BCB.\n");
 		goto out;
 	}
-
-	if (!strcmp("bootonce-bootloader", bcb->command)) {
-		/* Erase the message in the BCB since this value should be used
-		 * only once.
-		 */
-		memset(bcb->command, 0, sizeof(bcb->command));
-		if (bcb_store())
-			printf("WARNING: Unable to clear BCB state for bootonce-bootloader.\n");
-
-		ret = ANDROID_BOOT_MODE_BOOTLOADER;
+	if (bcb_get(BCB_FIELD_COMMAND, bcb_command, sizeof(bcb_command))) {
+		printf("WARNING: Unable to load the BCB command field.\n");
 		goto out;
 	}
 
-	if (!strcmp("boot-recovery", bcb->command))
+	if (!strcmp("bootonce-bootloader", bcb_command)) {
+		/* Erase the message in the BCB since this value should be used
+		 * only once.
+		 */
+		ret = ANDROID_BOOT_MODE_BOOTLOADER;
+
+		if (bcb_set(BCB_FIELD_COMMAND, "")) {
+			printf("WARNING: Unable to clear BCB field for bootonce-bootloader.\n");
+			goto out;
+		}
+		if (bcb_store())
+			printf("WARNING: Unable to clear BCB state for bootonce-bootloader.\n");
+
+		goto out;
+	}
+
+	if (!strcmp("boot-recovery", bcb_command))
 		ret = ANDROID_BOOT_MODE_RECOVERY;
 
 out:
