@@ -603,10 +603,18 @@ config ANDROID_USES_RECOVERY_AS_BOOT
 	  ramdisk located in the boot image. This flow requires an Android
 	  Bootloader
 
+config ANDROID_BOOTLOADER_CONSOLE_TRANSPORT
+	bool "Support for Android Bootloader TEE transport"
+	default n
+	depends on ANDROID_BOOTLOADER
+	help
+	  If enabled, the android bootloader will be able to communicate
+	  with host using binary protocol over console device.
+
 config ANDROID_BOOTLOADER_KEYMINT_CONSOLE
 	bool "Support for Android Bootloader Keymint initialization"
 	default n
-	depends on ANDROID_BOOTLOADER
+	select ANDROID_BOOTLOADER_CONSOLE_TRANSPORT
 	help
 	  If enabled, the android bootloader will write information from AVB into
 	  a console device using a keymint message protocol.
