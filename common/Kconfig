@@ -611,6 +611,16 @@ config ANDROID_BOOTLOADER_CONSOLE_TRANSPORT
 	  If enabled, the android bootloader will be able to communicate
 	  with host using binary protocol over console device.
 
+config ANDROID_BOOTLOADER_OEMLOCK_CONSOLE
+	bool "Support for Android Bootloader Oemlock communication"
+	default n
+	select ANDROID_BOOTLOADER_CONSOLE_TRANSPORT
+	help
+	  If enabled, the android bootloader will use this console to
+	  communicate with Oemlock TEE during the boot process. This
+	  configuration will only take effect only if both
+	  CONFIG_AVB_IS_UNLOCKED and CONFIG_OPTEE_TA_AVB are disabled.
+
 config ANDROID_BOOTLOADER_KEYMINT_CONSOLE
 	bool "Support for Android Bootloader Keymint initialization"
 	default n

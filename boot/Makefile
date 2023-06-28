@@ -19,6 +19,7 @@ obj-$(CONFIG_ANDROID_AB) += android_ab.o
 obj-$(CONFIG_ANDROID_BOOT_IMAGE) += image-android.o image-android-dt.o
 obj-$(CONFIG_ANDROID_BOOTLOADER) += android_bootloader.o
 obj-$(CONFIG_ANDROID_BOOTLOADER_CONSOLE_TRANSPORT) += android_bootloader_transport.o
+obj-$(CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE) += android_bootloader_oemlock.o
 obj-$(CONFIG_ANDROID_BOOTLOADER_KEYMINT_CONSOLE) += android_bootloader_keymint.o
 
 obj-$(CONFIG_$(SPL_TPL_)BOOTSTD) += bootdev-uclass.o

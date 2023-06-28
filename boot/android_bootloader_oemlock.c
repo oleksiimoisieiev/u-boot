@@ -1,0 +1,85 @@
+/*
+ * Copyright (C) 2023 The Android Open Source Project
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+#include <android_bootloader_oemlock.h>
+#include <android_bootloader_transport.h>
+#include <dm/device.h>
+#include <dm/uclass.h>
+#include <serial.h>
+
+enum oemlock_field {
+	ALLOWED_BY_CARRIER = 0,
+	ALLOWED_BY_DEVICE,
+	ALLOWED,
+	LOCKED,
+};
+
+static const char console_name[] = "virtio-console#12";
+
+static struct udevice* get_console(void)
+{
+	static struct udevice *console = NULL;
+	if (console == NULL) {
+		if (uclass_get_device_by_name(UCLASS_SERIAL, console_name, &console)) {
+			log_err("Failed to initialize oemlock console\n");
+			return NULL;
+		}
+	}
+	return console;
+}
+
+static int oemlock_get_field(enum oemlock_field field)
+{
+	struct udevice *console = get_console();
+	if (console == NULL) {
+		return -EINVAL;
+	}
+
+	bool response = false;
+	int ret = android_bootloader_request_response(console, field,
+						      NULL, 0,
+						      &response, sizeof(response));
+	if (ret != 0) {
+		log_err("Failed to get oemlock value for field: %d status: %d\n", field, ret);
+		return -EINVAL;
+	}
+
+	return response;
+}
+
+static int oemlock_set_field(enum oemlock_field field, bool value)
+{
+	struct udevice *console = get_console();
+	if (console == NULL) {
+		return -EINVAL;
+	}
+
+	bool response = false;
+	int ret = android_bootloader_request_response(console, field,
+						      &value, sizeof(value),
+						      &response, sizeof(response));
+
+	if (ret != 0) {
+		log_err("Failed to set oemlock value for field: %d status: %d\n", field, ret);
+		return -EINVAL;
+	}
+
+	return response;
+}
+
+int oemlock_is_allowed(void)
+{
+	return oemlock_get_field(ALLOWED);
+}
+
+int oemlock_set_locked(bool locked)
+{
+	return oemlock_set_field(LOCKED, locked);
+}
+
+int oemlock_is_locked(void)
+{
+	return oemlock_get_field(LOCKED);
+}
