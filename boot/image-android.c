@@ -253,7 +253,6 @@ static void _populate_boot_info(const struct boot_img_hdr_v4* boot_hdr,
 		const struct boot_img_hdr_v4* init_boot_hdr,
 		const void* load_addr,
 		struct andr_boot_info *boot_info) {
-	size_t size;
 	boot_info->kernel_size = boot_hdr->kernel_size;
 	boot_info->boot_ramdisk_size = init_boot_hdr->ramdisk_size ? : boot_hdr->ramdisk_size;
 	boot_info->boot_header_version = boot_hdr->header_version;
@@ -289,10 +288,9 @@ static void _populate_boot_info(const struct boot_img_hdr_v4* boot_hdr,
 		sizeof(vboot_hdr->cmdline));
 
 	boot_info->kernel_addr = (ulong)load_addr;
-	size = IS_ENABLED(CONFIG_X86) ? SZ_128M : SZ_64M;
 	/* The "kernel_addr" is already aligned to 2MB */
 	boot_info->vendor_ramdisk_addr = boot_info->kernel_addr +
-			ALIGN(boot_info->kernel_size, size);
+			ALIGN(boot_info->kernel_size, SZ_64M);
 	boot_info->boot_ramdisk_addr = boot_info->vendor_ramdisk_addr
 		+ boot_info->vendor_ramdisk_size;
 
