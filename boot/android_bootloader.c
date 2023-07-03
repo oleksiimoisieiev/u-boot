@@ -41,18 +41,6 @@ static enum android_boot_mode android_bootloader_load_and_clear_mode(
 	enum android_boot_mode ret = ANDROID_BOOT_MODE_NORMAL;
 	char bcb_command[32];
 
-#ifdef CONFIG_FASTBOOT
-	char *bootloader_str;
-
-	/* Check for message from bootloader stored in RAM from a previous boot.
-	 */
-	bootloader_str = (char *)CONFIG_FASTBOOT_BUF_ADDR;
-	if (!strcmp("reboot-bootloader", bootloader_str)) {
-		bootloader_str[0] = '\0';
-		return ANDROID_BOOT_MODE_BOOTLOADER;
-	}
-#endif
-
 	if (bcb_load(dev_desc, misc_part_info)) {
 		printf("WARNING: Unable to load the BCB.\n");
 		goto out;
