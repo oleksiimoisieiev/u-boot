@@ -16,13 +16,13 @@ enum oemlock_field {
 	LOCKED,
 };
 
-static const char console_name[] = CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_NAME;
+static const int console_index = CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_INDEX;
 
 static struct udevice* get_console(void)
 {
 	static struct udevice *console = NULL;
 	if (console == NULL) {
-		if (uclass_get_device_by_name(UCLASS_SERIAL, console_name, &console)) {
+		if (uclass_get_device(UCLASS_SERIAL, console_index, &console)) {
 			log_err("Failed to initialize oemlock console\n");
 			return NULL;
 		}

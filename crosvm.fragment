@@ -3,7 +3,5 @@
 # PCI config space.
 CONFIG_PCI_ENUM_ONLY=y
 CONFIG_PCI_REGION_MULTI_ENTRY=y
-# Crosvm console indexing is different from Qemu in Cuttlefish case
-CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_NAME="virtio-console#12"
 # CONFIG_PCI_PNP is not set
 # CONFIG_PCI_ENHANCED_ALLOCATION is not set
