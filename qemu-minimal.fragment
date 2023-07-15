@@ -155,6 +155,3 @@ CONFIG_CMO_BY_VA_ONLY=y
 
 # Enable BOUNCE_BUFFER API
 CONFIG_BOUNCE_BUFFER=y
-
-# Qemu console indexing is different from Qemu in Cuttlefish case
-CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_INDEX=10

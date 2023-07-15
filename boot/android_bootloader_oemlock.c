@@ -8,6 +8,7 @@
 #include <dm/device.h>
 #include <dm/uclass.h>
 #include <serial.h>
+#include <virtio.h>
 
 enum oemlock_field {
 	ALLOWED_BY_CARRIER = 0,
@@ -16,13 +17,14 @@ enum oemlock_field {
 	LOCKED,
 };
 
-static const int console_index = CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_INDEX;
+static const int console_index = CONFIG_ANDROID_BOOTLOADER_OEMLOCK_VIRTIO_CONSOLE_INDEX;
 
 static struct udevice* get_console(void)
 {
 	static struct udevice *console = NULL;
 	if (console == NULL) {
-		if (uclass_get_device(UCLASS_SERIAL, console_index, &console)) {
+		if (uclass_get_nth_device_by_driver_name(UCLASS_SERIAL, console_index,
+							 VIRTIO_CONSOLE_DRV_NAME, &console)) {
 			log_err("Failed to initialize oemlock console\n");
 			return NULL;
 		}

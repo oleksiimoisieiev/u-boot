@@ -9,7 +9,3 @@ CONFIG_SYS_TEXT_BASE=0x80200000
 CONFIG_SYS_SCRIPT_ADDR=0x84300000
 CONFIG_SYS_PXEFILE_ADDR_R=0x84400000
 CONFIG_RNG_SMCCC_TRNG=y
-# Crosvm arm configurations have 4 additional
-# ns16550_serial devices in fdt compare to x86
-# https://github.com/google/crosvm/blob/main/aarch64/src/fdt.rs#L291
-CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_INDEX=14

@@ -11,6 +11,4 @@
 # Disable the drivers to avoid failing probes.
 # CONFIG_X86_PCH7 is not set
 # CONFIG_X86_PCH9 is not set
-
-CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE_INDEX=11
 CONFIG_DEFAULT_FDT_FILE="qemu-x86_i440fx.dtb"
