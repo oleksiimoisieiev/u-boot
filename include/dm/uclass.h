@@ -317,6 +317,24 @@ int uclass_get_device_by_driver(enum uclass_id id, const struct driver *drv,
 				struct udevice **devp);
 
 /**
+ * uclass_get_device_by_driver_name() - Get nth device for a driver
+ *
+ * This searches the nth devices in the uclass for one that uses the given
+ * driver. Use DM_DRIVER_GET(name) for the @drv argument, where 'name' is
+ * the driver name - as used in U_BOOT_DRIVER(name).
+ *
+ * The device is probed to activate it ready for use.
+ *
+ * @id: ID to look up
+ * @n: index of device to return
+ * @driver_name: Driver name (null terminated string) to look for
+ * @devp: Returns pointer to the first device with that driver
+ * Return: 0 if OK, -ve on error
+ */
+int uclass_get_nth_device_by_driver_name(enum uclass_id id, int n,
+					 const char *driver_name, struct udevice **devp);
+
+/**
  * uclass_first_device() - Get the first device in a uclass
  *
  * The device returned is probed if necessary, and ready for use

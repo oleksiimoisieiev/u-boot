@@ -462,6 +462,32 @@ int uclass_get_device_by_driver(enum uclass_id id,
 	return -ENODEV;
 }
 
+int uclass_get_nth_device_by_driver_name(enum uclass_id id, int n,
+					 const char *driver_name, struct udevice **devp)
+{
+	struct uclass *uc;
+	struct udevice *dev;
+	int ret;
+
+	*devp = NULL;
+	ret = uclass_get(id, &uc);
+	if (ret)
+		return ret;
+	if (list_empty(&uc->dev_head))
+		return -ENODEV;
+
+	uclass_foreach_dev(dev, uc) {
+		if (strcmp(dev->driver->name, driver_name) == 0) {
+			if (!n--) {
+				*devp = dev;
+				return 0;
+			}
+		}
+	}
+
+	return -ENODEV;
+}
+
 int uclass_get_device_tail(struct udevice *dev, int ret, struct udevice **devp)
 {
 	if (ret)
