@@ -59,6 +59,8 @@ CONFIG_SYS_LONGHELP=y
 
 # Used by Android boot loader and fastboot
 CONFIG_CMD_BCB=y
+# Used by Android boot loader (oemlock/avb)
+CONFIG_ANDROID_BOOTLOADER_OEMLOCK_VIRTIO_CONSOLE_INDEX=10
 
 # Must not use RNG from host.
 # CONFIG_VIRTIO_RNG is not set
