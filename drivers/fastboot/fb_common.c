@@ -105,13 +105,13 @@ int __weak fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 		[FASTBOOT_REBOOT_REASON_RECOVERY_WIPE] = "recovery\n--wipe_data"
 	};
 
-	int device = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT,
+	int device = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK,
 					CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_ID, -1);
 	if (device == -1) {
 		device = config_opt_enabled(CONFIG_FASTBOOT_FLASH_MMC,
 					    CONFIG_FASTBOOT_FLASH_MMC_DEV, -1);
 	}
-	char *bcb_iface = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK_DEVICE_SUPPORT,
+	char *bcb_iface = config_opt_enabled(CONFIG_FASTBOOT_FLASH_BLOCK,
 					     CONFIG_FASTBOOT_FLASH_BLOCK_INTERFACE_NAME, "mmc");
 
 	if (device == -1)
