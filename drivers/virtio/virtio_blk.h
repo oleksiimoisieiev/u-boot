@@ -93,6 +93,9 @@ struct __packed virtio_blk_config {
 /* Get device ID command */
 #define VIRTIO_BLK_T_GET_ID	8
 
+/* Write zeroes command */
+#define VIRTIO_BLK_T_WRITE_ZEROES 13
+
 #ifndef VIRTIO_BLK_NO_LEGACY
 /* Barrier before this op */
 #define VIRTIO_BLK_T_BARRIER	0x80000000
@@ -110,6 +113,15 @@ struct virtio_blk_outhdr {
 	__virtio32 ioprio;
 	/* Sector (ie. 512 byte offset) */
 	__virtio64 sector;
+};
+
+struct virtio_blk_discard_write_zeroes {
+	/* discard/write zeroes start sector */
+	__virtio64 sector;
+	/* number of discard/write zeroes sectors */
+	__virtio32 num_sectors;
+	/* flags for this range */
+	__virtio32 flags;
 };
 
 #ifndef VIRTIO_BLK_NO_LEGACY

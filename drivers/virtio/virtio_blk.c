@@ -19,30 +19,78 @@ struct virtio_blk_priv {
 	struct virtqueue *vq;
 };
 
+static void virtio_blk_init_header_sg(struct udevice *dev, u64 sector, u32 type,
+				      struct virtio_blk_outhdr *out_hdr, struct virtio_sg *sg)
+{
+	const bool sector_is_needed = type == VIRTIO_BLK_T_IN ||
+				      type == VIRTIO_BLK_T_OUT;
+
+	out_hdr->type = cpu_to_virtio32(dev, type);
+	out_hdr->sector = cpu_to_virtio64(dev, sector_is_needed ? sector : 0);
+
+	sg->addr = out_hdr;
+	sg->length = sizeof(*out_hdr);
+}
+
+static void virtio_blk_init_write_zeroes_sg(struct udevice *dev, u64 sector, lbaint_t blkcnt,
+					    struct virtio_blk_discard_write_zeroes *wz,
+					    struct virtio_sg *sg)
+{
+	wz->sector = cpu_to_virtio64(dev, sector);
+	wz->num_sectors = cpu_to_virtio32(dev, blkcnt);
+	wz->flags = cpu_to_virtio32(dev, 0);
+
+	sg->addr = wz;
+	sg->length = sizeof(*wz);
+}
+
+static void virtio_blk_init_status_sg(u8 *status, struct virtio_sg *sg)
+{
+	sg->addr = status;
+	sg->length = sizeof(*status);
+}
+
+static void virtio_blk_init_data_sg(void *buffer, lbaint_t blkcnt, struct virtio_sg *sg)
+{
+	sg->addr = buffer;
+	sg->length = blkcnt * 512;
+}
+
 static ulong virtio_blk_do_req(struct udevice *dev, u64 sector,
 			       lbaint_t blkcnt, void *buffer, u32 type)
 {
 	struct virtio_blk_priv *priv = dev_get_priv(dev);
+	struct virtio_blk_outhdr out_hdr;
+	struct virtio_blk_discard_write_zeroes wz_hdr;
 	unsigned int num_out = 0, num_in = 0;
+	struct virtio_sg hdr_sg, wz_sg, data_sg, status_sg;
 	struct virtio_sg *sgs[3];
 	u8 status;
 	int ret;
 
-	struct virtio_blk_outhdr out_hdr = {
-		.type = cpu_to_virtio32(dev, type),
-		.sector = cpu_to_virtio64(dev, sector),
-	};
-	struct virtio_sg hdr_sg = { &out_hdr, sizeof(out_hdr) };
-	struct virtio_sg data_sg = { buffer, blkcnt * 512 };
-	struct virtio_sg status_sg = { &status, sizeof(status) };
-
+	virtio_blk_init_header_sg(dev, sector, type, &out_hdr, &hdr_sg);
 	sgs[num_out++] = &hdr_sg;
 
-	if (type & VIRTIO_BLK_T_OUT)
-		sgs[num_out++] = &data_sg;
-	else
-		sgs[num_out + num_in++] = &data_sg;
+	switch (type) {
+	case VIRTIO_BLK_T_IN:
+	case VIRTIO_BLK_T_OUT:
+		virtio_blk_init_data_sg(buffer, blkcnt, &data_sg);
+		if (type & VIRTIO_BLK_T_OUT)
+			sgs[num_out++] = &data_sg;
+		else
+			sgs[num_out + num_in++] = &data_sg;
+		break;
 
+	case VIRTIO_BLK_T_WRITE_ZEROES:
+		virtio_blk_init_write_zeroes_sg(dev, sector, blkcnt, &wz_hdr, &wz_sg);
+		sgs[num_out++] = &wz_sg;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	virtio_blk_init_status_sg(&status, &status_sg);
 	sgs[num_out + num_in++] = &status_sg;
 	log_debug("dev=%s, active=%d, priv=%p, priv->vq=%p\n", dev->name,
 		  device_active(dev), priv, priv->vq);
@@ -74,6 +122,12 @@ static ulong virtio_blk_write(struct udevice *dev, lbaint_t start,
 {
 	return virtio_blk_do_req(dev, start, blkcnt, (void *)buffer,
 				 VIRTIO_BLK_T_OUT);
+}
+
+static ulong virtio_blk_erase(struct udevice *dev, lbaint_t start,
+			      lbaint_t blkcnt)
+{
+	return virtio_blk_do_req(dev, start, blkcnt, NULL, VIRTIO_BLK_T_WRITE_ZEROES);
 }
 
 static int virtio_blk_bind(struct udevice *dev)
@@ -132,6 +186,7 @@ static int virtio_blk_probe(struct udevice *dev)
 static const struct blk_ops virtio_blk_ops = {
 	.read	= virtio_blk_read,
 	.write	= virtio_blk_write,
+	.erase	= virtio_blk_erase,
 };
 
 U_BOOT_DRIVER(virtio_blk) = {
