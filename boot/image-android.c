@@ -254,7 +254,8 @@ static void _populate_boot_info(const struct boot_img_hdr_v4* boot_hdr,
 		const void* load_addr,
 		struct andr_boot_info *boot_info) {
 	boot_info->kernel_size = boot_hdr->kernel_size;
-	boot_info->boot_ramdisk_size = init_boot_hdr->ramdisk_size ? : boot_hdr->ramdisk_size;
+	boot_info->boot_ramdisk_size = (init_boot_hdr && init_boot_hdr->ramdisk_size) ? 
+		init_boot_hdr->ramdisk_size : boot_hdr->ramdisk_size;
 	boot_info->boot_header_version = boot_hdr->header_version;
 	boot_info->vendor_ramdisk_size = vboot_hdr->vendor_ramdisk_size;
 	boot_info->tags_addr = vboot_hdr->tags_addr;
