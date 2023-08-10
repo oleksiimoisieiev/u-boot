@@ -271,7 +271,6 @@ u8 tcp_sent_state_machine(u8 action, u32 *tcp_seq_num, u32 *tcp_ack_num)
 	case TCP_RST:
 		debug_cond(DEBUG_DEV_PKT,
 			   "TCP Hdr:RST  (s=%u, a=%u)\n", *tcp_seq_num, *tcp_ack_num);
-		current_tcp_state = TCP_CLOSED;
 		break;
 	/* Notify connection closing */
 	case (TCP_FIN | TCP_ACK):
