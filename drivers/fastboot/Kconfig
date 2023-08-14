@@ -101,7 +101,7 @@ choice
 
 config FASTBOOT_FLASH_MMC
 	bool "FASTBOOT on MMC"
-	depends on MMC
+	depends on MMC && BLK
 
 config FASTBOOT_FLASH_NAND
 	bool "FASTBOOT on NAND"

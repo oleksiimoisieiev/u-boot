@@ -4,9 +4,11 @@
  */
 
 #include <blk.h>
+#include <div64.h>
 #include <fastboot-internal.h>
 #include <fastboot.h>
 #include <fb_block.h>
+#include <image-sparse.h>
 #include <part.h>
 
 /**
@@ -71,7 +73,7 @@ int fastboot_block_get_part_info(const char *part_name,
 	}
 
 	*dev_desc = blk_get_dev(interface, device);
-	if (dev_desc == NULL) {
+	if (!dev_desc) {
 		fastboot_fail("no such device", response);
 		return -ENODEV;
 	}
@@ -90,7 +92,7 @@ void fastboot_block_erase(const char *part_name, char *response)
 	lbaint_t written;
 
 	fastboot_block_get_part_info(part_name, &dev_desc, &part_info, response);
-	if (dev_desc == NULL)
+	if (!dev_desc)
 		return;
 
 	written = fb_block_write(dev_desc, part_info.start, part_info.size, NULL);
@@ -100,4 +102,50 @@ void fastboot_block_erase(const char *part_name, char *response)
 	}
 
 	fastboot_okay(NULL, response);
+}
+
+void fastboot_block_write_raw_image(struct blk_desc *dev_desc,
+				    struct disk_partition *info, const char *part_name,
+				    void *buffer, u32 download_bytes, char *response)
+{
+	lbaint_t blkcnt;
+	lbaint_t blks;
+
+	/* determine number of blocks to write */
+	blkcnt = ((download_bytes + (info->blksz - 1)) & ~(info->blksz - 1));
+	blkcnt = lldiv(blkcnt, info->blksz);
+
+	if (blkcnt > info->size) {
+		pr_err("too large for partition: '%s'\n", part_name);
+		fastboot_fail("too large for partition", response);
+		return;
+	}
+
+	puts("Flashing Raw Image\n");
+
+	blks = fb_block_write(dev_desc, info->start, blkcnt, buffer);
+
+	if (blks != blkcnt) {
+		pr_err("failed writing to device %d\n", dev_desc->devnum);
+		fastboot_fail("failed writing to device", response);
+		return;
+	}
+
+	printf("........ wrote " LBAFU " bytes to '%s'\n", blkcnt * info->blksz,
+	       part_name);
+	fastboot_okay(NULL, response);
+}
+
+void fastboot_block_flash_write(const char *part_name, void *download_buffer,
+				u32 download_bytes, char *response)
+{
+	struct blk_desc *dev_desc;
+	struct disk_partition part_info;
+
+	fastboot_block_get_part_info(part_name, &dev_desc, &part_info, response);
+	if (!dev_desc)
+		return;
+
+	fastboot_block_write_raw_image(dev_desc, &part_info, part_name,
+				       download_buffer, download_bytes, response);
 }
