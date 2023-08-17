@@ -639,7 +639,7 @@ static inline void net_send_packet(uchar *pkt, int len)
 /**
  * net_send_ip_packet() - Transmit "net_tx_packet" as UDP or TCP packet,
  *                        send ARP request if needed (ether will be populated)
- * @ether: Raw packet buffer
+ * @ether: Destination ethernet or zeroed buffer (in that case will be populated by ARP)
  * @dest: IP address to send the datagram to
  * @dport: Destination UDP port
  * @sport: Source UDP port

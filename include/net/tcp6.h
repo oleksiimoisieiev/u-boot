@@ -91,8 +91,6 @@ void net_set_tcp_handler6(rxhand_tcp6_f *f);
 int net_set_tcp_header6(uchar *pkt, u16 dport, u16 sport, int payload_len,
 			u8 action, u32 tcp_seq_num, u32 tcp_ack_num);
 
-void net_set_tcp_handler6(rxhand_tcp6_f *f);
-
 /**
  * rxhand_tcp6() - handle incoming IP6 TCP packet
  * @param b pointer to IP6/TCP packet builder struct

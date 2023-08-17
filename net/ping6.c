@@ -20,7 +20,7 @@ static ushort seq_no;
 struct in6_addr net_ping_ip6;
 
 int
-ip6_make_ping(uchar *eth_dst_addr, struct in6_addr *neigh_addr, uchar *pkt)
+ip6_make_ping(const uchar *eth_dst_addr, struct in6_addr *neigh_addr, uchar *pkt)
 {
 	struct echo_msg *msg;
 	u16 len;
@@ -56,17 +56,11 @@ ip6_make_ping(uchar *eth_dst_addr, struct in6_addr *neigh_addr, uchar *pkt)
 int ping6_send(void)
 {
 	uchar *pkt;
-	static uchar mac[6];
-
-	/* always send neighbor solicit */
-
-	memcpy(mac, net_null_ethaddr, 6);
 
 	net_nd_sol_packet_ip6 = net_ping_ip6;
-	net_nd_packet_mac = mac;
 
 	pkt = net_nd_tx_packet;
-	pkt += ip6_make_ping(mac, &net_ping_ip6, pkt);
+	pkt += ip6_make_ping(net_null_ethaddr, &net_ping_ip6, pkt);
 
 	/* size of the waiting packet */
 	net_nd_tx_packet_size = (pkt - net_nd_tx_packet);

@@ -294,7 +294,8 @@ int ip6_add_hdr(uchar *xip, struct in6_addr *src, struct in6_addr *dest,
 /**
  * net_send_udp_packet6() - Make up UDP packet and send it
  *
- * @ether:	destination MAC addr
+ * @ether:	destination MAC addr or zeroed buffer
+ *		(in that case will be populated by ipv6 ndisc)
  * @dest:	destination IPv6 addr
  * @dport:	destination port
  * @sport:	source port

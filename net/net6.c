@@ -406,7 +406,7 @@ int net_send_ip_packet6(uchar *ether, struct in6_addr *dest, int dport, int spor
 		memset((uchar *)net_tx_packet, 0, pkt_hdr_size + payload_len);
 
 		net_copy_ip6(&net_nd_sol_packet_ip6, dest);
-		net_nd_packet_mac = ether;
+		net_nd_packet_mac_out = ether;
 		/* size of the waiting packet */
 		net_nd_tx_packet_size = pkt_hdr_size + payload_len;
 		net_nd_try = 1;
