@@ -21,17 +21,34 @@ static u16 curr_sport;
 static u16 curr_dport;
 static u32 curr_tcp_seq_num;
 static u32 curr_tcp_ack_num;
+static u64 curr_downloaded;
 static unsigned int curr_request_len;
 static bool is_ipv6;
 static size_t ip_header_size;
 static enum fastboot_tcp_state {
 	FASTBOOT_CLOSED,
 	FASTBOOT_CONNECTED,
+	FASTBOOT_DOWNLOADING,
 	FASTBOOT_DISCONNECTING
 } state = FASTBOOT_CLOSED;
 
 static int command_handled_id;
 static bool command_handled_success;
+
+static void fastboot_tcp_reset_state(void)
+{
+	state = FASTBOOT_CLOSED;
+	memset(command, 0, FASTBOOT_COMMAND_LEN);
+	memset(response, 0, FASTBOOT_RESPONSE_LEN);
+	curr_sport = 0;
+	curr_dport = 0;
+	curr_tcp_seq_num = 0;
+	curr_tcp_ack_num = 0;
+	curr_request_len = 0;
+	curr_downloaded = 0;
+	command_handled_id = 0;
+	command_handled_success = false;
+}
 
 static void fastboot_tcp_answer(u8 action, unsigned int len)
 {
@@ -54,6 +71,7 @@ static void fastboot_tcp_reset(void)
 {
 	fastboot_tcp_answer(TCP_RST, 0);
 	state = FASTBOOT_CLOSED;
+	fastboot_tcp_reset_state();
 }
 
 static void fastboot_tcp_send_packet(u8 action, const uchar *data, unsigned int len)
@@ -88,6 +106,7 @@ static void fastboot_tcp_handler(uchar *pkt, u16 dport, u16 sport,
 {
 	int fastboot_command_id;
 	u64 command_size;
+	bool has_data = len != 0;
 	u8 tcp_fin = action & TCP_FIN;
 	u8 tcp_push = action & TCP_PUSH;
 
@@ -99,16 +118,16 @@ static void fastboot_tcp_handler(uchar *pkt, u16 dport, u16 sport,
 
 	switch (state) {
 	case FASTBOOT_CLOSED:
-		if (tcp_push) {
-			if (len != handshake_length ||
-			    memcmp(pkt, handshake, handshake_length) != 0) {
-				fastboot_tcp_reset();
-				break;
-			}
-			fastboot_tcp_send_packet(TCP_ACK | TCP_PUSH,
-						 handshake, handshake_length);
-			state = FASTBOOT_CONNECTED;
+		if (!tcp_push) {
+			fastboot_tcp_reset();
+			break;
 		}
+		if (len != handshake_length || memcmp(pkt, handshake, handshake_length) != 0) {
+			fastboot_tcp_reset();
+			break;
+		}
+		fastboot_tcp_send_packet(TCP_ACK | TCP_PUSH, handshake, handshake_length);
+		state = FASTBOOT_CONNECTED;
 		break;
 	case FASTBOOT_CONNECTED:
 		if (tcp_fin) {
@@ -116,23 +135,65 @@ static void fastboot_tcp_handler(uchar *pkt, u16 dport, u16 sport,
 			state = FASTBOOT_DISCONNECTING;
 			break;
 		}
-		if (tcp_push) {
-			// First 8 bytes is big endian message length
+		if (!tcp_push || !has_data) {
+			fastboot_tcp_reset();
+			break;
+		}
+
+		// First 8 bytes is big endian message length
+		command_size = __be64_to_cpu(*(u64 *)pkt);
+		len -= 8;
+		pkt += 8;
+
+		// Only single packet messages are supported ATM
+		if (len != command_size) {
+			fastboot_tcp_reset();
+			break;
+		}
+		strlcpy(command, pkt, len + 1);
+		fastboot_command_id = fastboot_handle_command(command, response);
+		fastboot_tcp_send_message(response, strlen(response));
+
+		command_handled_id = fastboot_command_id;
+		command_handled_success = strncmp("OKAY", response, 4) == 0 ||
+					  strncmp("DATA", response, 4) == 0;
+
+		if (fastboot_command_id == FASTBOOT_COMMAND_DOWNLOAD && command_handled_success)
+			state = FASTBOOT_DOWNLOADING;
+		break;
+	case FASTBOOT_DOWNLOADING:
+		if (tcp_fin) {
+			fastboot_tcp_answer(TCP_FIN | TCP_ACK, 0);
+			state = FASTBOOT_DISCONNECTING;
+			break;
+		}
+		if (!has_data) {
+			fastboot_tcp_reset();
+			break;
+		}
+
+		// Only the first download message has big endian message length
+		if (curr_downloaded == 0) {
 			command_size = __be64_to_cpu(*(u64 *)pkt);
 			len -= 8;
 			pkt += 8;
+		}
 
-			// Only single packet messages are supported ATM
-			if (len != command_size) {
-				fastboot_tcp_reset();
-				break;
-			}
-			strlcpy(command, pkt, len + 1);
-			fastboot_command_id = fastboot_handle_command(command, response);
+		if (fastboot_data_download(pkt, len, response)) {
+			printf("Fastboot downloading failed. Data remain: %u received: %u\n",
+			       fastboot_data_remaining(), len);
+			fastboot_tcp_reset();
+			break;
+		}
+		curr_downloaded += len;
+
+		if (fastboot_data_remaining() > 0) {
+			fastboot_tcp_send_packet(TCP_ACK, NULL, 0);
+		} else {
+			fastboot_data_complete(response);
+			curr_downloaded = 0;
+			state = FASTBOOT_CONNECTED;
 			fastboot_tcp_send_message(response, strlen(response));
-
-			command_handled_id = fastboot_command_id;
-			command_handled_success = strncmp("OKAY", response, 4) == 0;
 		}
 		break;
 	case FASTBOOT_DISCONNECTING:
@@ -184,6 +245,7 @@ static void fastboot_tcp_handler_ipv6(uchar *pkt, u16 dport,
 
 void fastboot_tcp_start_server(void)
 {
+	fastboot_tcp_reset_state();
 	printf("Using %s device\n", eth_get_name());
 
 	printf("Listening for fastboot command on tcp %pI4\n", &net_ip);

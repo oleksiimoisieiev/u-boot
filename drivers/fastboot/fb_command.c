@@ -248,9 +248,9 @@ u32 fastboot_data_remaining(void)
  * On completion sets image_size and ${filesize} to the total size of the
  * downloaded image.
  */
-void fastboot_data_download(const void *fastboot_data,
-			    unsigned int fastboot_data_len,
-			    char *response)
+int fastboot_data_download(const void *fastboot_data,
+			   unsigned int fastboot_data_len,
+			   char *response)
 {
 #define BYTES_PER_DOT	0x20000
 	u32 pre_dot_num, now_dot_num;
@@ -260,7 +260,7 @@ void fastboot_data_download(const void *fastboot_data,
 	    fastboot_bytes_expected) {
 		fastboot_fail("Received invalid data length",
 			      response);
-		return;
+		return -EINVAL;
 	}
 	/* Download data to fastboot_buf_addr */
 	memcpy(fastboot_buf_addr + fastboot_bytes_received,
@@ -276,6 +276,7 @@ void fastboot_data_download(const void *fastboot_data,
 			putc('\n');
 	}
 	*response = '\0';
+	return 0;
 }
 
 /**
