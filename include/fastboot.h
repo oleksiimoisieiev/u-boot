@@ -163,8 +163,8 @@ u32 fastboot_data_remaining(void);
  * response. fastboot_bytes_received is updated to indicate the number
  * of bytes that have been transferred.
  */
-void fastboot_data_download(const void *fastboot_data,
-			    unsigned int fastboot_data_len, char *response);
+int fastboot_data_download(const void *fastboot_data,
+			   unsigned int fastboot_data_len, char *response);
 
 /**
  * fastboot_data_complete() - Mark current transfer complete
