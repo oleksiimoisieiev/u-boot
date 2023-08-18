@@ -18,8 +18,6 @@
 struct in6_addr net_nd_sol_packet_ip6 = ZERO_IPV6_ADDR;
 /* IPv6 address we are expecting ND advert from */
 static struct in6_addr net_nd_rep_packet_ip6 = ZERO_IPV6_ADDR;
-/* MAC destination address of packet waiting for ND */
-uchar *net_nd_packet_mac;
 /* pointer to packet waiting to be transmitted after ND is resolved */
 uchar *net_nd_tx_packet;
 static uchar net_nd_packet_buf[PKTSIZE_ALIGN + PKTALIGN];
@@ -29,6 +27,8 @@ int net_nd_tx_packet_size;
 ulong net_nd_timer_start;
 /* the number of requests we have sent so far */
 int net_nd_try;
+/* MAC destination address of packet waiting for ND */
+uchar *net_nd_packet_mac_out;
 
 #define IP6_NDISC_OPT_SPACE(len) (((len) + 2 + 7) & ~7)
 
@@ -225,7 +225,7 @@ int ndisc_timeout_check(void)
 
 void ndisc_init(void)
 {
-	net_nd_packet_mac = NULL;
+	net_nd_packet_mac_out = NULL;
 	net_nd_tx_packet = NULL;
 	net_nd_sol_packet_ip6 = net_null_addr_ip6;
 	net_nd_rep_packet_ip6 = net_null_addr_ip6;
@@ -263,13 +263,12 @@ int ndisc_receive(struct ethernet_hdr *et, struct ip6_hdr *ip6, int len)
 		    ndisc_has_option(ip6, ND_OPT_TARGET_LL_ADDR)) {
 			ndisc_extract_enetaddr(ndisc, neigh_eth_addr);
 
-			/* save address for later use */
-			if (!net_nd_packet_mac)
-				net_nd_packet_mac = neigh_eth_addr;
-
 			/* modify header, and transmit it */
 			memcpy(((struct ethernet_hdr *)net_nd_tx_packet)->et_dest,
 			       neigh_eth_addr, 6);
+
+			if (net_nd_packet_mac_out)
+				memcpy(net_nd_packet_mac_out, neigh_eth_addr, 6);
 
 			net_send_packet(net_nd_tx_packet,
 					net_nd_tx_packet_size);
@@ -277,7 +276,7 @@ int ndisc_receive(struct ethernet_hdr *et, struct ip6_hdr *ip6, int len)
 			/* no ND request pending now */
 			net_nd_sol_packet_ip6 = net_null_addr_ip6;
 			net_nd_tx_packet_size = 0;
-			net_nd_packet_mac = NULL;
+			net_nd_packet_mac_out = NULL;
 		}
 		break;
 	default:

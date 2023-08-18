@@ -142,6 +142,11 @@ void fastboot_block_flash_write(const char *part_name, void *download_buffer,
 	struct blk_desc *dev_desc;
 	struct disk_partition part_info;
 
+	if (is_sparse_image(download_buffer)) {
+		fastboot_fail("sparse image flashing isn't supported", response);
+		return;
+	}
+
 	fastboot_block_get_part_info(part_name, &dev_desc, &part_info, response);
 	if (!dev_desc)
 		return;

@@ -39,8 +39,6 @@ enum {
 
 /* IPv6 destination address of packet waiting for ND */
 extern struct in6_addr net_nd_sol_packet_ip6;
-/* MAC destination address of packet waiting for ND */
-extern uchar *net_nd_packet_mac;
 /* pointer to packet waiting to be transmitted after ND is resolved */
 extern uchar *net_nd_tx_packet;
 /* size of packet waiting to be transmitted */
@@ -49,6 +47,8 @@ extern int net_nd_tx_packet_size;
 extern ulong net_nd_timer_start;
 /* the number of requests we have sent so far */
 extern int net_nd_try;
+/* MAC destination address of packet waiting for ND */
+extern uchar *net_nd_packet_mac_out;
 
 #ifdef CONFIG_IPV6
 /**
@@ -69,6 +69,30 @@ int ndisc_receive(struct ethernet_hdr *et, struct ip6_hdr *ip6, int len);
 
 /**
  * ndisc_request() - Send ND request
+ *
+ * In/out params for ndisc flow are passed by net_nd_* global variables.
+ *
+ * Example of usage:
+ * // Initialize net_nd_tx_packet and net_nd_tx_packet_size with the packet buffer
+ * // that will be updated with the result mac and sent after successful ndisc
+ * memcpy((uchar *)net_nd_tx_packet, (uchar *)packet_to_send_after_ndisc, len);
+ * net_nd_tx_packet_size = your_packet_len;
+ *
+ * // Initialize destination ipv6 address, so it will be used after successful
+ * // ndisc
+ * net_copy_ip6(&net_nd_sol_packet_ip6, dest);
+ *
+ * // Initialize amount of ndisc attempts we want to execute
+ * net_nd_try = 1;
+ *
+ * // Initialize current timer to be able to identify timeout case
+ * net_nd_timer_start = get_timer(0);
+ *
+ * // [Optional] If you want to receive a result mac you can initialize net_nd_packet_mac_out
+ * // with the predefined buffer, so next time you can avoid doing ndisc by saving the mac
+ * // for the given address
+ * uchar[6] ether;
+ * net_nd_packet_mac_out = ether;
  */
 void ndisc_request(void);
 
