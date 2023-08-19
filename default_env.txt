@@ -2,4 +2,5 @@ bootcmd=virtio scan && dm drivers && if part number virtio 1 uboot_env uboot_env
 bootcmd_android=verified_boot_android virtio 0#misc
 uenvcmd=run bootcmd_android
 fastbootcmd=fastboot tcp -ipv6 && boot
+netretry=yes
 android_keymint_needed=N
