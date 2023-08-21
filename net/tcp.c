@@ -594,7 +594,6 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 	if (tcp_rst) {
 		action = TCP_DATA;
 		current_tcp_state = TCP_CLOSED;
-		net_set_state(NETLOOP_FAIL);
 		debug_cond(DEBUG_INT_STATE, "TCP Reset %x\n", tcp_flags);
 		return TCP_RST;
 	}
@@ -611,6 +610,8 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 		}
 		break;
 	case TCP_SYN_RECEIVED:
+		debug_cond(DEBUG_INT_STATE, "TCP_SYN_RECEIVED %x, %u\n",
+			   tcp_flags, tcp_seq_num);
 		if (tcp_ack) {
 			action = TCP_DATA;
 			init_sack_options(tcp_seq_num, tcp_seq_num + 1);
@@ -618,7 +619,7 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 		}
 		break;
 	case TCP_SYN_SENT:
-		debug_cond(DEBUG_INT_STATE, "TCP_SYN_SENT | TCP_SYN_RECEIVED %x, %u\n",
+		debug_cond(DEBUG_INT_STATE, "TCP_SYN_SENT %x, %u\n",
 			   tcp_flags, tcp_seq_num);
 		if (tcp_fin) {
 			action = action | TCP_PUSH;
