@@ -48,6 +48,9 @@ int board_late_init(void)
 
 	fdtaddr = (ulong)board_fdt_blob_setup(&ret);
 	env_set_hex("fdtaddr", fdtaddr);
+	#ifdef CONFIG_SYS_LOAD_ADDR
+		env_set_hex("loadaddr", (ulong)CONFIG_SYS_LOAD_ADDR);
+	#endif
 
 	chosen_node = ofnode_path("/chosen");
 	if (!ofnode_valid(chosen_node)) {
@@ -73,10 +76,6 @@ int board_late_init(void)
 	}
 
 	env_set_hex("kernel_start", kernel_start);
-
-#ifdef CONFIG_SYS_LOAD_ADDR
-	env_set_hex("loadaddr", (ulong)CONFIG_SYS_LOAD_ADDR);
-#endif
 
 	return 0;
 }
