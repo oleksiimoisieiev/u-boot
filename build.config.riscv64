@@ -1,6 +1,6 @@
 . ${ROOT_DIR}/u-boot/build.config.common
 
-ARCH=riscv64
+ARCH=riscv
 CLANG_TRIPLE=riscv64-linux-gnu-
 CROSS_COMPILE=llvm-
 LD=ld.lld
