@@ -19,6 +19,10 @@ struct virtio_blk_priv {
 	struct virtqueue *vq;
 };
 
+static const u32 feature[] = {
+	VIRTIO_BLK_F_WRITE_ZEROES
+};
+
 static void virtio_blk_init_header_sg(struct udevice *dev, u64 sector, u32 type,
 				      struct virtio_blk_outhdr *out_hdr, struct virtio_sg *sg)
 {
@@ -127,6 +131,9 @@ static ulong virtio_blk_write(struct udevice *dev, lbaint_t start,
 static ulong virtio_blk_erase(struct udevice *dev, lbaint_t start,
 			      lbaint_t blkcnt)
 {
+	if (!virtio_has_feature(dev, VIRTIO_BLK_F_WRITE_ZEROES))
+		return -ENOTSUPP;
+
 	return virtio_blk_do_req(dev, start, blkcnt, NULL, VIRTIO_BLK_T_WRITE_ZEROES);
 }
 
@@ -159,7 +166,8 @@ static int virtio_blk_bind(struct udevice *dev)
 	desc->bdev = dev;
 
 	/* Indicate what driver features we support */
-	virtio_driver_features_init(uc_priv, NULL, 0, NULL, 0);
+	virtio_driver_features_init(uc_priv, feature, ARRAY_SIZE(feature),
+				    NULL, 0);
 
 	return 0;
 }
