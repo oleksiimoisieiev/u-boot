@@ -11,17 +11,20 @@
 #include <net/tcp.h>
 #include <net/tcp6.h>
 
-static char command[FASTBOOT_COMMAND_LEN] = {0};
-static char response[FASTBOOT_RESPONSE_LEN] = {0};
-
-static const unsigned short handshake_length = 4;
+static const u8 header_buffer_size_bytes = 8;
+static const u8 handshake_length = 4;
 static const uchar *handshake = "FB01";
 
+static char command[FASTBOOT_COMMAND_LEN] = {0};
+static char response[FASTBOOT_RESPONSE_LEN] = {0};
+static uchar curr_header_buffer[header_buffer_size_bytes] = {0};
 static u16 curr_sport;
 static u16 curr_dport;
 static u32 curr_tcp_seq_num;
 static u32 curr_tcp_ack_num;
-static u64 curr_downloaded;
+static u64 curr_chunk_size;
+static u64 curr_chunk_downloaded;
+static u64 curr_header_downloaded;
 static unsigned int curr_request_len;
 static bool is_ipv6;
 static size_t ip_header_size;
@@ -40,12 +43,15 @@ static void fastboot_tcp_reset_state(void)
 	state = FASTBOOT_CLOSED;
 	memset(command, 0, FASTBOOT_COMMAND_LEN);
 	memset(response, 0, FASTBOOT_RESPONSE_LEN);
+	memset(curr_header_buffer, 0, header_buffer_size_bytes);
 	curr_sport = 0;
 	curr_dport = 0;
 	curr_tcp_seq_num = 0;
 	curr_tcp_ack_num = 0;
 	curr_request_len = 0;
-	curr_downloaded = 0;
+	curr_chunk_size = 0;
+	curr_chunk_downloaded = 0;
+	curr_header_downloaded = 0;
 	command_handled_id = 0;
 	command_handled_success = false;
 }
@@ -105,6 +111,7 @@ static void fastboot_tcp_handler(uchar *pkt, u16 dport, u16 sport,
 				 u32 tcp_seq_num, u32 tcp_ack_num,
 				 u8 action, unsigned int len)
 {
+	int remains_to_download;
 	int fastboot_command_id;
 	u64 command_size;
 	bool has_data = len != 0;
@@ -173,26 +180,66 @@ static void fastboot_tcp_handler(uchar *pkt, u16 dport, u16 sport,
 			break;
 		}
 
-		// Only the first download message has big endian message length
-		if (curr_downloaded == 0) {
-			command_size = __be64_to_cpu(*(u64 *)pkt);
-			len -= 8;
-			pkt += 8;
-		}
+		// The Fastboot TCP download payload consists of two distinct types of segments:
+		// 1. <header> - 8 bytes big endian header specifying incoming data size
+		// 2. <data> - actual content we're downloading
+		//
+		// The download traffic typically follows this pattern:
+		// <header(20mb)><data:20mb><header(1mb)><data:1mb><header(100mb)><data:100mb> etc
+		//
+		// However, the way TCP/Fastboot operates allows for the possibility of these 
+		// headers and data segments being placed within different TCP packets without
+		// following any specific pattern.
+		//
+		// For instance, it is possible for one TCP packet to contain multiple segments
+		// like this:
+		// | <header(2mb)><data:2mb><header(1mb)> | <data:1mb><header(10mb)> | <data:10mb> |
+		// |                    1                 |              2           |      3      |
+		//
+		// Or these segments might be even not aligned with TCP packet boundaries,
+		// as shown here:
+		// | <header(2mb)><data: | 2mb><header(1mb)><data:1mb><header( | 10mb)><data:10mb> |
+		// |          1          |                  2                  |         3         |
+		while (len > 0) {
+			// reading data
+			remains_to_download = curr_chunk_size - curr_chunk_downloaded;
+			remains_to_download = remains_to_download <= len ? remains_to_download : len;
+			if (remains_to_download > 0) {
+				if (fastboot_data_download(pkt, remains_to_download, response)) {
+					printf("Fastboot downloading error. Data remain: %u received: %u\n",
+					       fastboot_data_remaining(), remains_to_download);
+					fastboot_tcp_reset();
+					break;
+				}
+				pkt += remains_to_download;
+				len -= remains_to_download;
+				curr_chunk_downloaded += remains_to_download;
+			}
 
-		if (fastboot_data_download(pkt, len, response)) {
-			printf("Fastboot downloading failed. Data remain: %u received: %u\n",
-			       fastboot_data_remaining(), len);
-			fastboot_tcp_reset();
-			break;
+			// reading header
+			remains_to_download = header_buffer_size_bytes - curr_header_downloaded;
+			remains_to_download = remains_to_download <= len ? remains_to_download : len;
+			if (remains_to_download > 0) {
+				memcpy(curr_header_buffer + curr_header_downloaded, pkt, remains_to_download);
+				pkt += remains_to_download;
+				len -= remains_to_download;
+				curr_header_downloaded += remains_to_download;
+
+				if (curr_header_downloaded == header_buffer_size_bytes) {
+					curr_chunk_size = __be64_to_cpu(*(u64 *)curr_header_buffer);
+					curr_chunk_downloaded = 0;
+					curr_header_downloaded = 0;
+					memset(curr_header_buffer, 0, header_buffer_size_bytes);
+				}
+			}
 		}
-		curr_downloaded += len;
 
 		if (fastboot_data_remaining() > 0) {
 			fastboot_tcp_send_packet(TCP_ACK, NULL, 0);
 		} else {
 			fastboot_data_complete(response);
-			curr_downloaded = 0;
+			curr_chunk_size = 0;
+			curr_chunk_downloaded = 0;
 			state = FASTBOOT_CONNECTED;
 			fastboot_tcp_send_message(response, strlen(response));
 		}
