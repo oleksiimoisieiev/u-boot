@@ -23,6 +23,10 @@
  */
 #define FASTBOOT_MAX_BLOCKS_WRITE 65536
 
+struct fb_block_sparse {
+	struct blk_desc	*dev_desc;
+};
+
 static lbaint_t fb_block_write(struct blk_desc *block_dev, lbaint_t start,
 			       lbaint_t blkcnt, const void *buffer)
 {
@@ -49,6 +53,22 @@ static lbaint_t fb_block_write(struct blk_desc *block_dev, lbaint_t start,
 		blks += blks_written;
 	}
 	return blks;
+}
+
+static lbaint_t fb_block_sparse_write(struct sparse_storage *info,
+				      lbaint_t blk, lbaint_t blkcnt,
+				      const void *buffer)
+{
+	struct fb_block_sparse *sparse = info->priv;
+	struct blk_desc *dev_desc = sparse->dev_desc;
+
+	return fb_block_write(dev_desc, blk, blkcnt, buffer);
+}
+
+static lbaint_t fb_block_sparse_reserve(struct sparse_storage *info,
+					lbaint_t blk, lbaint_t blkcnt)
+{
+	return blkcnt;
 }
 
 int fastboot_block_get_part_info(const char *part_name,
@@ -136,21 +156,47 @@ void fastboot_block_write_raw_image(struct blk_desc *dev_desc,
 	fastboot_okay(NULL, response);
 }
 
+void fastboot_block_write_sparse_image(struct blk_desc *dev_desc, struct disk_partition *info,
+				       const char *part_name, void *buffer, char *response)
+{
+	struct fb_block_sparse sparse_priv;
+	struct sparse_storage sparse;
+	int err;
+
+	sparse_priv.dev_desc = dev_desc;
+
+	sparse.blksz = info->blksz;
+	sparse.start = info->start;
+	sparse.size = info->size;
+	sparse.write = fb_block_sparse_write;
+	sparse.reserve = fb_block_sparse_reserve;
+	sparse.mssg = fastboot_fail;
+
+	printf("Flashing sparse image at offset " LBAFU "\n",
+	       sparse.start);
+
+	sparse.priv = &sparse_priv;
+	err = write_sparse_image(&sparse, part_name, buffer,
+				 response);
+	if (!err)
+		fastboot_okay(NULL, response);
+}
+
 void fastboot_block_flash_write(const char *part_name, void *download_buffer,
 				u32 download_bytes, char *response)
 {
 	struct blk_desc *dev_desc;
 	struct disk_partition part_info;
 
-	if (is_sparse_image(download_buffer)) {
-		fastboot_fail("sparse image flashing isn't supported", response);
-		return;
-	}
-
 	fastboot_block_get_part_info(part_name, &dev_desc, &part_info, response);
 	if (!dev_desc)
 		return;
 
-	fastboot_block_write_raw_image(dev_desc, &part_info, part_name,
-				       download_buffer, download_bytes, response);
+	if (is_sparse_image(download_buffer)) {
+		fastboot_block_write_sparse_image(dev_desc, &part_info, part_name,
+						  download_buffer, response);
+	} else {
+		fastboot_block_write_raw_image(dev_desc, &part_info, part_name,
+					       download_buffer, download_bytes, response);
+	}
 }

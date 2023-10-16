@@ -45,6 +45,18 @@ void fastboot_block_write_raw_image(struct blk_desc *dev_desc,
 				    void *buffer, u32 download_bytes, char *response);
 
 /**
+ * fastboot_block_write_sparse_image() - Write sparse image to block device
+ *
+ * @dev_desc: Block device we're going write to
+ * @info: Partition we're going write to
+ * @part_name: Name of partition we're going write to
+ * @buffer: Downloaded buffer pointer
+ * @response: Pointer to fastboot response buffer
+ */
+void fastboot_block_write_sparse_image(struct blk_desc *dev_desc, struct disk_partition *info,
+				       const char *part_name, void *buffer, char *response);
+
+/**
  * fastboot_block_flash_write() - Write image to block device for fastboot
  *
  * @part_name: Named partition to write image to
