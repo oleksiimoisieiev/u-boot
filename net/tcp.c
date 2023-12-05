@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <net.h>
 #include <net/tcp.h>
+#include <timer.h>
 
 /*
  * TCP sliding window  control used by us to request re-TX
@@ -38,6 +39,10 @@ static u32 tcp_seq_init;
 static u32 tcp_ack_edge;
 
 static int tcp_activity_count;
+
+// 5 seconds timeout
+static const int tcp_time_connection_timeout = 5000 * CONFIG_SYS_HZ / 1000;
+static int tcp_last_connection_data_frame;
 
 /*
  * Search for TCP_SACK and review the comments before the code section
@@ -60,6 +65,12 @@ static enum tcp_state current_tcp_state;
 /* Current TCP RX packet handler */
 static rxhand_tcp *tcp_packet_handler;
 
+static void reset_tcp_state(void)
+{
+	current_tcp_state = TCP_CLOSED;
+	tcp_last_connection_data_frame = 0;
+}
+
 /**
  * tcp_get_tcp_state() - get current TCP state
  *
@@ -76,7 +87,18 @@ enum tcp_state tcp_get_tcp_state(void)
  */
 void tcp_set_tcp_state(enum tcp_state new_state)
 {
+	if (new_state == TCP_CLOSED)
+		tcp_last_connection_data_frame = 0;
 	current_tcp_state = new_state;
+}
+
+/**
+ * tcp_update_last_connection_data_frame_time() - notify current connection is used
+ * to avoid timeout
+ */
+void tcp_update_last_connection_data_frame_time(void)
+{
+	tcp_last_connection_data_frame = get_timer(0);
 }
 
 static void dummy_handler(uchar *pkt, u16 dport,
@@ -574,6 +596,8 @@ static void init_sack_options(u32 tcp_seq_num, u32 tcp_ack_num)
 u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 		     u32 *tcp_ack_num_out, int payload_len)
 {
+	bool timeout_reached;
+	int time_since_connection_established;
 	u8 tcp_fin = tcp_flags & TCP_FIN;
 	u8 tcp_syn = tcp_flags & TCP_SYN;
 	u8 tcp_rst = tcp_flags & TCP_RST;
@@ -593,9 +617,20 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 	debug_cond(DEBUG_INT_STATE, "TCP STATE ENTRY %x\n", action);
 	if (tcp_rst) {
 		action = TCP_DATA;
-		current_tcp_state = TCP_CLOSED;
+		reset_tcp_state();
 		debug_cond(DEBUG_INT_STATE, "TCP Reset %x\n", tcp_flags);
 		return TCP_RST;
+	}
+
+	// Allow to break established TCP connection to accept the new one if it doesn't have any
+	// data transferred to the app for the last 5 seconds.
+	time_since_connection_established = get_timer(0) - tcp_last_connection_data_frame;
+	timeout_reached = tcp_syn && current_tcp_state == TCP_ESTABLISHED &&
+		time_since_connection_established > tcp_time_connection_timeout;
+	if (timeout_reached) {
+		printf("TCP timeout. Time since connection established: %d. Incoming action: %u. Current TCP state: %d\n",
+		       time_since_connection_established, tcp_flags, current_tcp_state);
+		reset_tcp_state();
 	}
 
 	switch  (current_tcp_state) {
@@ -616,6 +651,7 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 			action = TCP_DATA;
 			init_sack_options(tcp_seq_num, tcp_seq_num + 1);
 			current_tcp_state = TCP_ESTABLISHED;
+			tcp_update_last_connection_data_frame_time();
 		}
 		break;
 	case TCP_SYN_SENT:
@@ -628,6 +664,7 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 			action |= TCP_ACK | TCP_PUSH;
 			init_sack_options(tcp_seq_num, tcp_seq_num + 1);
 			current_tcp_state = TCP_ESTABLISHED;
+			tcp_update_last_connection_data_frame_time();
 		} else {
 			action = TCP_DATA;
 		}
@@ -661,7 +698,7 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 		debug_cond(DEBUG_INT_STATE, "TCP_FIN_WAIT_2 (%x)\n", tcp_flags);
 		if (tcp_ack) {
 			action = TCP_PUSH | TCP_ACK;
-			current_tcp_state = TCP_CLOSED;
+			reset_tcp_state();
 			puts("\n");
 		} else if (tcp_syn) {
 			action = TCP_DATA;
@@ -679,13 +716,13 @@ u8 tcp_state_machine(u8 tcp_flags, u32 tcp_seq_num, u32 *tcp_seq_num_out,
 		if (tcp_syn)
 			action = TCP_RST;
 		if (tcp_ack)
-			current_tcp_state = TCP_CLOSED;
+			reset_tcp_state();
 		break;
 	case TCP_CLOSING:
 		debug_cond(DEBUG_INT_STATE, "TCP_CLOSING (%x)\n", tcp_flags);
 		if (tcp_ack) {
 			action = TCP_PUSH;
-			current_tcp_state = TCP_CLOSED;
+			reset_tcp_state();
 			puts("\n");
 		} else if (tcp_syn) {
 			action = TCP_RST;
@@ -774,6 +811,7 @@ void rxhand_tcp_f(union tcp_build_pkt *b, unsigned int pkt_len)
 		(*tcp_packet_handler) ((uchar *)b + pkt_len - payload_len, b->ip.tcp_hdr.tcp_dst,
 				       b->ip.ip_hdr.ip_src, b->ip.tcp_hdr.tcp_src, tcp_seq_num,
 				       tcp_ack_num, tcp_action, payload_len);
+		tcp_update_last_connection_data_frame_time();
 
 	} else if (tcp_action != TCP_DATA) {
 		debug_cond(DEBUG_DEV_PKT,

@@ -292,6 +292,12 @@ enum tcp_state tcp_get_tcp_state(void);
 void tcp_set_tcp_state(enum tcp_state new_state);
 
 /**
+ * tcp_update_last_connection_data_frame_time() - notify current connection is used
+ * to avoid timeout
+ */
+void tcp_update_last_connection_data_frame_time(void);
+
+/**
  * net_set_tcp_header_common() - IP version agnostic TCP header building implementation
  *
  * @tcp_hdr: pointer to TCP header struct

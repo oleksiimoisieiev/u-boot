@@ -81,6 +81,7 @@ void rxhand_tcp6(union tcp6_build_pkt *b, unsigned int len)
 		(*tcp6_packet_handler) ((uchar *)b + len - payload_len, b->ip.tcp_hdr.tcp_dst,
 					b->ip.ip_hdr.saddr, b->ip.tcp_hdr.tcp_src, tcp_seq_num,
 					tcp_ack_num, tcp_action, payload_len);
+		tcp_update_last_connection_data_frame_time();
 
 	} else if (tcp_action != TCP_DATA) {
 		debug_cond(DEBUG_DEV_PKT,
