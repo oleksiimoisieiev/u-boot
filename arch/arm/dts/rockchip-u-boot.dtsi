@@ -53,6 +53,11 @@
 					entry = <CONFIG_TEXT_BASE>;
 					u-boot-nodtb {
 					};
+#ifdef CONFIG_SPL_FIT_SIGNATURE
+					hash {
+						algo = "sha256";
+					};
+#endif
 				};
 
 				@atf-SEQ {
@@ -68,6 +73,11 @@
 
 					atf-bl31 {
 					};
+#ifdef CONFIG_SPL_FIT_SIGNATURE
+					hash {
+						algo = "sha256";
+					};
+#endif
 				};
 				@tee-SEQ {
 					fit,operation = "split-elf";
@@ -83,12 +93,22 @@
 					tee-os {
 						optional;
 					};
+#ifdef CONFIG_SPL_FIT_SIGNATURE
+					hash {
+						algo = "sha256";
+					};
+#endif
 				};
 
 				@fdt-SEQ {
 					description = "fdt-NAME";
 					compression = "none";
 					type = "flat_dt";
+#ifdef CONFIG_SPL_FIT_SIGNATURE
+					hash {
+						algo = "sha256";
+					};
+#endif
 				};
 			};
 
