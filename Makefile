@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0+
 
 VERSION = 2023
-PATCHLEVEL = 04
+PATCHLEVEL = 07
 SUBLEVEL =
-EXTRAVERSION =
+EXTRAVERSION = -rc6
 NAME =
 
 # *DOCUMENTATION*
@@ -441,6 +441,7 @@ CLANG_TARGET	:= --target=$(notdir $(CLANG_TRIPLE:%-=%))
 ifeq ($(shell $(srctree)/scripts/clang-android.sh $(CC) $(CLANG_TARGET)), y)
 $(error "Clang with Android --target detected. Did you specify CLANG_TRIPLE?")
 endif
+LDPPFLAGS	+= $(CLANG_TARGET)
 GCC_TOOLCHAIN_DIR := $(dir $(shell which $(CROSS_COMPILE)elfedit))
 CLANG_PREFIX	:= --prefix=$(GCC_TOOLCHAIN_DIR)$(notdir $(CROSS_COMPILE))
 GCC_TOOLCHAIN	:= $(realpath $(GCC_TOOLCHAIN_DIR)/..)
@@ -527,7 +528,7 @@ env_h := include/generated/environment.h
 no-dot-config-targets := clean clobber mrproper distclean \
 			 help %docs check% coccicheck \
 			 ubootversion backup tests check pcheck qcheck tcheck \
-			 pylint pylint_err
+			 pylint pylint_err _pip pip pip_test pip_release
 
 config-targets := 0
 mixed-targets  := 0
@@ -795,6 +796,7 @@ KBUILD_CFLAGS += $(call cc-disable-warning, tautological-compare)
 # See modpost pattern 2
 KBUILD_CFLAGS += $(call cc-option, -mno-global-merge,)
 KBUILD_CFLAGS += $(call cc-option, -fcatch-undefined-behavior)
+KBUILD_CFLAGS += $(call cc-disable-warning, deprecated-non-prototype)
 endif
 
 # These warnings generated too much noise in a regular build.
@@ -968,7 +970,6 @@ ifeq ($(findstring llvm-,$(OBJCOPY)),)
 INPUTS-y += u-boot.srec
 endif
 
-INPUTS-$(CONFIG_ONENAND_U_BOOT) += u-boot-onenand.bin
 ifeq ($(CONFIG_SPL_FSL_PBL),y)
 INPUTS-$(CONFIG_RAMBOOT_PBL) += u-boot-with-spl-pbl.bin
 else
@@ -1018,8 +1019,13 @@ ifeq ($(CONFIG_INIT_SP_RELATIVE)$(CONFIG_OF_SEPARATE),yy)
 INPUTS-y += init_sp_bss_offset_check
 endif
 
-ifeq ($(CONFIG_ARCH_ROCKCHIP)_$(CONFIG_SPL_FRAMEWORK),y_)
+ifeq ($(CONFIG_ARCH_ROCKCHIP)$(CONFIG_SPL),yy)
+# Binman image dependencies
+ifeq ($(CONFIG_ARM64),y)
+INPUTS-y += u-boot.itb
+else
 INPUTS-y += u-boot.img
+endif
 endif
 
 INPUTS-$(CONFIG_X86) += u-boot-x86-start16.bin u-boot-x86-reset16.bin \
@@ -1351,7 +1357,6 @@ cmd_binman = $(srctree)/tools/binman/binman $(if $(BINMAN_DEBUG),-D) \
 		-a opensbi-path=${OPENSBI} \
 		-a default-dt=$(default_dt) \
 		-a scp-path=$(SCP) \
-		-a rockchip-tpl-path=$(ROCKCHIP_TPL) \
 		-a spl-bss-pad=$(if $(CONFIG_SPL_SEPARATE_BSS),,1) \
 		-a tpl-bss-pad=$(if $(CONFIG_TPL_SEPARATE_BSS),,1) \
 		-a spl-dtb=$(CONFIG_SPL_OF_REAL) \
@@ -1385,6 +1390,9 @@ $(U_BOOT_ITS): $(subst ",,$(CONFIG_SPL_FIT_SOURCE))
 else
 ifneq ($(CONFIG_USE_SPL_FIT_GENERATOR),)
 U_BOOT_ITS := u-boot.its
+ifeq ($(CONFIG_SPL_FIT_GENERATOR),"arch/arm/mach-rockchip/make_fit_atf.py")
+U_BOOT_ITS_DEPS += u-boot
+endif
 $(U_BOOT_ITS): $(U_BOOT_ITS_DEPS) FORCE
 	$(srctree)/$(CONFIG_SPL_FIT_GENERATOR) \
 	$(patsubst %,arch/$(ARCH)/dts/%.dtb,$(subst ",,$(CONFIG_OF_LIST))) > $@
@@ -1535,6 +1543,9 @@ endif
 #endif
 
 u-boot.uim: u-boot.bin FORCE
+	$(Q)$(MAKE) $(build)=arch/arm/mach-imx $@
+
+u-boot-nand.imx: u-boot.imx FORCE
 	$(Q)$(MAKE) $(build)=arch/arm/mach-imx $@
 
 u-boot-with-spl.imx u-boot-with-nand-spl.imx: SPL $(if $(CONFIG_OF_SEPARATE),u-boot.img,u-boot.uim) FORCE
@@ -1773,7 +1784,7 @@ ifeq ($(CONFIG_KALLSYMS),y)
 endif
 
 ifeq ($(CONFIG_RISCV),y)
-	@tools/prelink-riscv $@ 0
+	@tools/prelink-riscv $@
 endif
 
 quiet_cmd_sym ?= SYM     $@
@@ -2128,7 +2139,7 @@ tools/version.h: include/version.h
 	$(Q)mkdir -p $(dir $@)
 	$(call if_changed,copy)
 
-envtools: scripts_basic $(version_h) $(timestamp_h) tools/version.h
+envtools: u-boot-initial-env scripts_basic $(version_h) $(timestamp_h) tools/version.h
 	$(Q)$(MAKE) $(build)=tools/env
 
 tools-only: export TOOLS_ONLY=y
@@ -2169,7 +2180,7 @@ CLEAN_FILES += include/bmp_logo.h include/bmp_logo_data.h \
 	       mkimage-out.spl.mkimage mkimage.spl.mkimage imx-boot.map \
 	       itb.fit.fit itb.fit.itb itb.map spl.map mkimage-out.rom.mkimage \
 	       mkimage.rom.mkimage rom.map simple-bin.map simple-bin-spi.map \
-	       idbloader-spi.img
+	       idbloader-spi.img lib/efi_loader/helloworld_efi.S
 
 # ANDROID: bl31.elf was checked into Git so it isn't an artifact that needs rm
 ifneq (,$(shell grep '^!bl31.elf$$' "$(srctree)/.gitignore"))
@@ -2294,6 +2305,21 @@ backup:
 	F=`basename $(srctree)` ; cd .. ; \
 	gtar --force-local -zcvf `LC_ALL=C date "+$$F-%Y-%m-%d-%T.tar.gz"` $$F
 
+PHONY += _pip pip pip_release
+
+pip_release: PIP_ARGS="--real"
+pip_test: PIP_ARGS=""
+pip: PIP_ARGS="-n"
+
+pip pip_test pip_release: _pip
+
+_pip:
+	scripts/make_pip.sh u_boot_pylib ${PIP_ARGS}
+	scripts/make_pip.sh patman ${PIP_ARGS}
+	scripts/make_pip.sh buildman ${PIP_ARGS}
+	scripts/make_pip.sh dtoc ${PIP_ARGS}
+	scripts/make_pip.sh binman ${PIP_ARGS}
+
 help:
 	@echo  'Cleaning targets:'
 	@echo  '  clean		  - Remove most generated files but keep the config'
@@ -2326,6 +2352,11 @@ help:
 	@echo  '  ubootversion	  - Output the version stored in Makefile (use with make -s)'
 	@echo  "  cfg		  - Don't build, just create the .cfg files"
 	@echo  "  envtools	  - Build only the target-side environment tools"
+	@echo  ''
+	@echo  'PyPi / pip targets:'
+	@echo  '  pip             - Check building of PyPi packages'
+	@echo  '  pip_test        - Build PyPi pakages and upload to test server'
+	@echo  '  pip_release     - Build PyPi pakages and upload to release server'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  checkstack      - Generate a list of stack hogs'

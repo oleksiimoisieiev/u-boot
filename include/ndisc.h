@@ -19,6 +19,20 @@ struct nd_msg {
 	__u8		opt[0];
 };
 
+/* struct rs_msg - ICMPv6 Router Solicitation message format */
+struct rs_msg {
+	struct icmp6hdr	icmph;
+	__u8		opt[0];
+};
+
+/* struct ra_msg - ICMPv6 Router Advertisement message format */
+struct ra_msg {
+	struct icmp6hdr	icmph;
+	__u32	reachable_time;
+	__u32	retransmission_timer;
+	__u8	opt[0];
+};
+
 /* struct echo_msg - ICMPv6 echo request/reply message format */
 struct echo_msg {
 	struct icmp6hdr	icmph;
@@ -56,6 +70,11 @@ extern uchar *net_nd_packet_mac_out;
  * Usually move variables into initial state.
  */
 void ndisc_init(void);
+
+/*
+ * ip6_send_rs() - Send IPv6 Router Solicitation Message
+ */
+void ip6_send_rs(void);
 
 /**
  * ndisc_receive() - Handle ND packet
@@ -102,6 +121,8 @@ void ndisc_request(void);
  * Return: 0 if no timeout, -1 otherwise
  */
 int ndisc_timeout_check(void);
+bool validate_ra(struct ip6_hdr *ip6);
+int process_ra(struct ip6_hdr *ip6, int len);
 #else
 static inline void ndisc_init(void)
 {
@@ -118,6 +139,20 @@ static inline void ndisc_request(void)
 }
 
 static inline int ndisc_timeout_check(void)
+{
+	return 0;
+}
+
+static inline void ip6_send_rs(void)
+{
+}
+
+static inline bool validate_ra(struct ip6_hdr *ip6)
+{
+	return true;
+}
+
+static inline int process_ra(struct ip6_hdr *ip6, int len)
 {
 	return 0;
 }

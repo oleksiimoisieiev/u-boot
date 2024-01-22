@@ -364,7 +364,7 @@ static void add_map(struct mm_region *map)
 		attrs |= PTE_DBM | PTE_RDONLY;
 
 	map_range(map->virt, map->phys, map->size, level,
-		  (u64*)gd->arch.tlb_addr, attrs);
+		  (u64 *)gd->arch.tlb_addr, attrs);
 }
 
 static void count_range(u64 virt, u64 size, int level, int *cntp)
@@ -585,20 +585,19 @@ void dcache_disable(void)
 	if (!(sctlr & CR_C))
 		return;
 
-#ifdef CONFIG_CMO_BY_VA_ONLY
-	/*
-	 * When invalidating by VA, do it *before* turning the MMU
-	 * off, so that at least our stack is coherent. How does it
-	 * work otherwise? Luck, as the inlining is totally pointless.
-	 */
-	flush_dcache_all();
-#endif
+	if (IS_ENABLED(CONFIG_CMO_BY_VA_ONLY)) {
+		/*
+		 * When invalidating by VA, do it *before* turning the MMU
+		 * off, so that at least our stack is coherent.
+		 */
+		flush_dcache_all();
+	}
 
 	set_sctlr(sctlr & ~(CR_C|CR_M));
 
-#ifndef CONFIG_CMO_BY_VA_ONLY
-	flush_dcache_all();
-#endif
+	if (!IS_ENABLED(CONFIG_CMO_BY_VA_ONLY))
+		flush_dcache_all();
+
 	__asm_invalidate_tlb_all();
 }
 

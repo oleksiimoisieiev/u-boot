@@ -328,7 +328,7 @@ static int select_ramdisk(struct bootm_headers *images, const char *select, u8 a
 	bool done_select = !select;
 	bool done = false;
 	int rd_noffset;
-	ulong rd_addr;
+	ulong rd_addr = 0;
 	char *buf;
 
 	if (CONFIG_IS_ENABLED(FIT)) {
@@ -992,7 +992,9 @@ int image_locate_script(void *buf, int size, const char *fit_uname,
 
 	switch (genimg_get_format(buf)) {
 	case IMAGE_FORMAT_LEGACY:
-		if (IS_ENABLED(CONFIG_LEGACY_IMAGE_FORMAT)) {
+		if (!IS_ENABLED(CONFIG_LEGACY_IMAGE_FORMAT)) {
+			goto exit_image_format;
+		} else {
 			hdr = buf;
 
 			if (!image_check_magic(hdr)) {
@@ -1035,7 +1037,9 @@ int image_locate_script(void *buf, int size, const char *fit_uname,
 		}
 		break;
 	case IMAGE_FORMAT_FIT:
-		if (IS_ENABLED(CONFIG_FIT)) {
+		if (!IS_ENABLED(CONFIG_FIT)) {
+			goto exit_image_format;
+		} else {
 			fit_hdr = buf;
 			if (fit_check_format(fit_hdr, IMAGE_SIZE_INVAL)) {
 				puts("Bad FIT image format\n");
@@ -1099,7 +1103,8 @@ fallback:
 			}
 
 			/* get script subimage data address and length */
-			if (fit_image_get_data(fit_hdr, noffset, &fit_data, &fit_len)) {
+			if (fit_image_get_data_and_size(fit_hdr, noffset,
+							&fit_data, &fit_len)) {
 				puts("Could not find script subimage data\n");
 				return 1;
 			}
@@ -1109,12 +1114,15 @@ fallback:
 		}
 		break;
 	default:
-		puts("Wrong image format for \"source\" command\n");
-		return -EPERM;
+		goto exit_image_format;
 	}
 
 	*datap = (char *)data;
 	*lenp = len;
 
 	return 0;
+
+exit_image_format:
+	puts("Wrong image format for \"source\" command\n");
+	return -EPERM;
 }

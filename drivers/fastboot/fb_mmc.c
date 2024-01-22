@@ -263,8 +263,7 @@ static lbaint_t fb_mmc_get_boot_header(struct blk_desc *dev_desc,
 	}
 
 	/* Check boot header magic string */
-	res = android_image_check_header(hdr);
-	if (res != 0) {
+	if (!is_android_boot_image_header(hdr)) {
 		pr_err("bad boot image magic\n");
 		fastboot_fail("boot partition not initialized", response);
 		return 0;
@@ -319,6 +318,14 @@ static int fb_mmc_update_zimage(struct blk_desc *dev_desc,
 		pr_err("unable to read boot image header\n");
 		fastboot_fail("unable to read boot image header", response);
 		return -1;
+	}
+
+	/* Check if boot image header version is 2 or less */
+	if (hdr->header_version > 2) {
+		pr_err("zImage flashing supported only for boot images v2 and less\n");
+		fastboot_fail("zImage flashing supported only for boot images v2 and less",
+			      response);
+		return -EOPNOTSUPP;
 	}
 
 	/* Check if boot image has second stage in it (we don't support it) */

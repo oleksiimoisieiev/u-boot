@@ -64,7 +64,6 @@ static unsigned int virtqueue_attach_desc(struct virtqueue *vq, unsigned int i,
 		if (ret) {
 			debug("%s: failed to allocate bounce buffer (length 0x%zx)\n",
 			      vq->vdev->name, sg->length);
-			BUG();
 		}
 
 		addr = bb->bounce_buffer;
@@ -73,7 +72,7 @@ static unsigned int virtqueue_attach_desc(struct virtqueue *vq, unsigned int i,
 	}
 
 	/* Update the shadow descriptor. */
-	desc_shadow->addr = (u64)(uintptr_t)sg->addr;
+	desc_shadow->addr = (u64)(uintptr_t)addr;
 	desc_shadow->len = sg->length;
 	desc_shadow->flags = flags;
 
@@ -88,6 +87,7 @@ static unsigned int virtqueue_attach_desc(struct virtqueue *vq, unsigned int i,
 
 static void virtqueue_detach_desc(struct virtqueue *vq, unsigned int idx)
 {
+	struct vring_desc *desc = &vq->vring.desc[idx];
 	struct bounce_buffer *bb;
 
 	if (!IS_ENABLED(CONFIG_BOUNCE_BUFFER) || !vq->vring.bouncebufs)
@@ -95,6 +95,7 @@ static void virtqueue_detach_desc(struct virtqueue *vq, unsigned int idx)
 
 	bb = &vq->vring.bouncebufs[idx];
 	bounce_buffer_stop(bb);
+	desc->addr = cpu_to_virtio64(vq->vdev, (u64)(uintptr_t)bb->user_buffer);
 }
 
 int virtqueue_add(struct virtqueue *vq, struct virtio_sg *sgs[],
@@ -336,9 +337,9 @@ struct virtqueue *vring_create_virtqueue(unsigned int index, unsigned int num,
 {
 	struct virtio_dev_priv *uc_priv = dev_get_uclass_priv(udev);
 	struct udevice *vdev = uc_priv->vdev;
-	struct bounce_buffer *bbs = NULL;
 	struct virtqueue *vq;
 	void *queue = NULL;
+	struct bounce_buffer *bbs = NULL;
 	struct vring vring;
 
 	/* We assume num is a power of 2 */

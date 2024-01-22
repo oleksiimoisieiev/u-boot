@@ -24,7 +24,7 @@
  *			- name of bootfile
  *	Next step:	ARP
  *
- * LINK_LOCAL:
+ * LINKLOCAL:
  *
  *	Prerequisites:	- own ethernet address
  *	We want:	- own IP address
@@ -109,6 +109,8 @@
 #include <watchdog.h>
 #include <linux/compiler.h>
 #include <test/test.h>
+#include <net/tcp.h>
+#include <net/wget.h>
 #include "arp.h"
 #include "bootp.h"
 #include "cdp.h"
@@ -122,8 +124,8 @@
 #if defined(CONFIG_CMD_WOL)
 #include "wol.h"
 #endif
-#include <net/tcp.h>
-#include <net/wget.h>
+#include "dhcpv6.h"
+#include "net_rand.h"
 
 /** BOOTP EXTENTIONS **/
 
@@ -137,6 +139,8 @@ struct in_addr net_dns_server;
 /* Our 2nd DNS IP address */
 struct in_addr net_dns_server2;
 #endif
+/* Indicates whether the pxe path prefix / config file was specified in dhcp option */
+char *pxelinux_configfile;
 
 /** END OF BOOTP EXTENTIONS **/
 
@@ -348,6 +352,8 @@ void net_auto_load(void)
 
 static int net_init_loop(void)
 {
+	static bool first_call = true;
+
 	if (eth_get_dev()) {
 		memcpy(net_ethaddr, eth_get_ethaddr(), 6);
 
@@ -367,6 +373,12 @@ static int net_init_loop(void)
 		 */
 		return -ENONET;
 
+	if (IS_ENABLED(CONFIG_IPV6_ROUTER_DISCOVERY))
+		if (first_call && use_ip6) {
+			first_call = false;
+			srand_mac(); /* This is for rand used in ip6_send_rs. */
+			net_loop(RS);
+		}
 	return 0;
 }
 
@@ -520,6 +532,10 @@ restart:
 			dhcp_request();		/* Basically same as BOOTP */
 			break;
 #endif
+		case DHCP6:
+			if (IS_ENABLED(CONFIG_CMD_DHCP6))
+				dhcp6_start();
+			break;
 #if defined(CONFIG_CMD_BOOTP)
 		case BOOTP:
 			bootp_reset();
@@ -584,6 +600,10 @@ restart:
 			ncsi_probe_packages();
 			break;
 #endif
+		case RS:
+			if (IS_ENABLED(CONFIG_IPV6_ROUTER_DISCOVERY))
+				ip6_send_rs();
+			break;
 		default:
 			break;
 		}
@@ -681,7 +701,13 @@ restart:
 			x = time_handler;
 			time_handler = (thand_f *)0;
 			(*x)();
-		}
+		} else if (IS_ENABLED(CONFIG_IPV6_ROUTER_DISCOVERY))
+			if (time_handler && protocol == RS)
+				if (!ip6_is_unspecified_addr(&net_gateway6) &&
+				    net_prefix_length != 0) {
+					net_set_state(NETLOOP_SUCCESS);
+					net_set_timeout_handler(0, NULL);
+				}
 
 		if (net_state == NETLOOP_FAIL)
 			ret = net_start_again();

@@ -6,16 +6,9 @@
 #ifndef __NET_FASTBOOT_H__
 #define __NET_FASTBOOT_H__
 
-/**********************************************************************/
-/*
- *	Global functions and variables.
- */
-
 /**
- * Wait for incoming fastboot comands.
+ * Wait for incoming UDP fastboot comands.
  */
 void fastboot_udp_start_server(void);
-
-/**********************************************************************/
 
 #endif /* __NET_FASTBOOT_H__ */
