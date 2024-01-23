@@ -31,7 +31,7 @@ struct disk_partition;
  * @param[in] normal_boot True if a normal boot, false if booting to recovery.
  * Return: The slot number (>= 0) on success, or a negative on error
  */
-int ab_select_slot(struct blk_desc *dev_desc, const struct disk_partition *part_info,
-		   bool normal_boot);
+int ab_select_slot(struct blk_desc *dev_desc, struct disk_partition *part_info,
+                   bool dec_tries, bool normal_boot);
 
 #endif /* __ANDROID_AB_H */

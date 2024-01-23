@@ -72,7 +72,7 @@ static inline bool supports_extension(char ext)
 #endif /* CONFIG_CPU */
 }
 
-static int riscv_cpu_probe(void)
+static int riscv_cpu_probe(void *ctx, struct event *event)
 {
 #ifdef CONFIG_CPU
 	int ret;
@@ -85,6 +85,7 @@ static int riscv_cpu_probe(void)
 
 	return 0;
 }
+EVENT_SPY(EVT_DM_POST_INIT_R, riscv_cpu_probe);
 
 /*
  * This is called on secondary harts just after the IPI is init'd. Currently
@@ -101,7 +102,7 @@ int riscv_cpu_setup(void *ctx, struct event *event)
 {
 	int ret;
 
-	ret = riscv_cpu_probe();
+	ret = riscv_cpu_probe(ctx, event);
 	if (ret)
 		return ret;
 
@@ -155,12 +156,6 @@ EVENT_SPY(EVT_DM_POST_INIT_F, riscv_cpu_setup);
 
 int arch_early_init_r(void)
 {
-	int ret;
-
-	ret = riscv_cpu_probe();
-	if (ret)
-		return ret;
-
 	if (IS_ENABLED(CONFIG_SYSRESET_SBI))
 		device_bind_driver(gd->dm_root, "sbi-sysreset",
 				   "sbi-sysreset", NULL);

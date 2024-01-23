@@ -538,7 +538,7 @@ int android_bootloader_boot_flow(const char* iface_str,
 		 */
 		if (misc_part_info) {
 			slot_num = ab_select_slot(dev_desc, misc_part_info,
-						  normal_boot);
+						  true, normal_boot);
 			if (slot_num < 0) {
 				log_err("Could not determine Android boot slot.\n");
 				slot_num = 0;

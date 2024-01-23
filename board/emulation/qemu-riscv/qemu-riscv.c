@@ -12,6 +12,7 @@
 #include <log.h>
 #include <spl.h>
 #include <init.h>
+#include <usb.h>
 #include <virtio_types.h>
 #include <virtio.h>
 
@@ -45,6 +46,10 @@ int board_late_init(void)
 	const char *bootargs;
 	ofnode chosen_node;
 	int ret;
+
+	/* start usb so that usb keyboard can be used as input device */
+	if (CONFIG_IS_ENABLED(USB_KEYBOARD))
+		usb_init();
 
 	fdtaddr = (ulong)board_fdt_blob_setup(&ret);
 	env_set_hex("fdtaddr", fdtaddr);
