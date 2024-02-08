@@ -218,6 +218,9 @@ static void download(char *cmd_parameter, char *response)
 {
 	char *tmp;
 
+	if (!ensure_device_is_unlocked("Download is not allowed on locked devices", response))
+		return;
+
 	if (!cmd_parameter) {
 		fastboot_fail("Expected command parameter", response);
 		return;
@@ -327,6 +330,9 @@ void fastboot_data_complete(char *response)
  */
 static void __maybe_unused flash(char *cmd_parameter, char *response)
 {
+	if (!ensure_device_is_unlocked("Flashing is not allowed on locked devices", response))
+		return;
+
 	if (IS_ENABLED(CONFIG_FASTBOOT_FLASH_BLOCK))
 		fastboot_block_flash_write(cmd_parameter, fastboot_buf_addr,
 					   image_size, response);
