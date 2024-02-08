@@ -189,6 +189,25 @@ static void getvar(char *cmd_parameter, char *response)
 	fastboot_getvar(cmd_parameter, response);
 }
 
+static bool ensure_device_is_unlocked(const char *error_message, char *response)
+{
+	if (IS_ENABLED(CONFIG_ANDROID_BOOTLOADER_OEMLOCK_CONSOLE)) {
+		int locked = oemlock_is_locked();
+		if (locked < 0) {
+			fastboot_fail("Couldn't check the locking state fo the "
+				      "device due to TEE error", response);
+			return false;
+		}
+
+		if (locked) {
+			fastboot_fail(error_message, response);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /**
  * fastboot_download() - Start a download transfer from the client
  *
@@ -332,6 +351,9 @@ static void __maybe_unused flash(char *cmd_parameter, char *response)
  */
 static void __maybe_unused erase(char *cmd_parameter, char *response)
 {
+	if (!ensure_device_is_unlocked("Erasing is not allowed on locked devices", response))
+		return;
+
 	if (IS_ENABLED(CONFIG_FASTBOOT_FLASH_BLOCK))
 		fastboot_block_erase(cmd_parameter, response);
 	if (IS_ENABLED(CONFIG_FASTBOOT_FLASH_MMC))
