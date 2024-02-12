@@ -12,8 +12,9 @@ config BOARD_SPECIFIC_OPTIONS # dummy
 	imply VIRTIO_NET
 	imply VIRTIO_BLK
 
-config SYS_EARLY_PCI_INIT
-	def_bool y
+config PRE_CON_BUF_ADDR
+	hex
+	default 0x40100000
 
 endif
 

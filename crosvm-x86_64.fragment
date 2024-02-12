@@ -1,7 +1,7 @@
 # crosvm does not support qemu-fw, therefore it cannot determine the number
 # of onlined CPUs, generate an MPTABLE, or use table-loader to generate the
 # PIEQ/ACPI tables. Disable these features to boot Linux with SMP.
-# CONFIG_GENERATE_ACPI_TABLE is not set
+# CONFIG_ACPI is not set
 # CONFIG_GENERATE_MP_TABLE is not set
 # CONFIG_GENERATE_PIRQ_TABLE is not set
 # CONFIG_MAX_CPUS is not set
