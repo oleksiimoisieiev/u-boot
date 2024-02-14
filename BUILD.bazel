@@ -249,13 +249,6 @@ copy_to_dist_dir(
     flat = True,
 )
 
-copy_to_dist_dir(
-    name = "gbl_efi_dist",
-    data = [ "@gbl//efi:all_platforms" ],
-    dist_dir = "out/u-boot/gbl_efi/",
-    flat = True,
-)
-
 # Use SWIG enabled Python
 py_runtime_pair(
     name = "py_runtime_pair",

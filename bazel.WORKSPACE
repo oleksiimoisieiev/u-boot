@@ -11,11 +11,3 @@ local_repository(
 
 load("//build/kernel/kleaf:workspace.bzl", "define_kleaf_workspace")
 define_kleaf_workspace(common_kernel_package = "u-boot")
-
-local_repository(
-    name = "gbl",
-    path = "bootable/libbootloader/gbl",
-)
-
-load("@gbl//integration/aosp_u-boot-mainline:workspace.bzl", "define_gbl_workspace")
-define_gbl_workspace()
