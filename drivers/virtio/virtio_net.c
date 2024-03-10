@@ -127,8 +127,17 @@ static int virtio_net_free_pkt(struct udevice *dev, uchar *packet, int length)
 	struct virtio_sg sg = { buf, VIRTIO_NET_RX_BUF_SIZE };
 	struct virtio_sg *sgs[] = { &sg };
 
+	// virtio_net stops receiving frames once it completely runs out of rx ring
+	// buffers. Adding back buffers does not resume it. An explicit
+	// notification is necessary to kick it off again.
+	bool need_notify = priv->rx_vq->free_head == 0;
+
 	/* Put the buffer back to the rx ring */
 	virtqueue_add(priv->rx_vq, sgs, 0, 1);
+
+	if (need_notify) {
+		virtqueue_kick(priv->rx_vq);
+	}
 
 	return 0;
 }
