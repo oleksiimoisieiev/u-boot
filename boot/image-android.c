@@ -289,9 +289,17 @@ static void _populate_boot_info(const struct boot_img_hdr_v4* boot_hdr,
 		sizeof(vboot_hdr->cmdline));
 
 	boot_info->kernel_addr = (ulong)load_addr;
-	/* The "kernel_addr" is already aligned to 2MB */
-	boot_info->vendor_ramdisk_addr = boot_info->kernel_addr +
-			ALIGN(boot_info->kernel_size, SZ_64M);
+	/* The "kernel_addr" is already aligned to 2MB. */
+	if (IS_ENABLED(CONFIG_X86))
+		/*
+		  We multiple the kernel_size by 3 to let it leave
+		  some spaces if the kernel is self-decompressed in-place.
+		*/
+		boot_info->vendor_ramdisk_addr = boot_info->kernel_addr +
+				ALIGN(boot_info->kernel_size, SZ_64M) * 3;
+	else
+		boot_info->vendor_ramdisk_addr = boot_info->kernel_addr +
+				ALIGN(boot_info->kernel_size, SZ_64M);
 	boot_info->boot_ramdisk_addr = boot_info->vendor_ramdisk_addr
 		+ boot_info->vendor_ramdisk_size;
 

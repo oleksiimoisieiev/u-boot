@@ -423,10 +423,10 @@ static int do_avb_verify(const char *iface,
 		data->slot_suffix = slot_suffix;
 		data->boot.addr = kernel_address;
 		data->boot.size = 0; // 0 indicates that it hasn't yet been preloaded.
-		data->vendor_boot.addr = data->boot.addr + (packed ? boot_size : SZ_64M);
+		data->vendor_boot.addr = data->boot.addr + (packed ? boot_size : ALIGN(boot_size, SZ_64M));
 		data->vendor_boot.size = 0;
 		if (init_boot_size != 0) {
-			data->init_boot.addr = data->vendor_boot.addr + (packed ? vendor_boot_size : SZ_64M);
+			data->init_boot.addr = data->vendor_boot.addr + (packed ? vendor_boot_size : ALIGN(vendor_boot_size, SZ_64M));
 			data->init_boot.size = 0;
 			ret = avb_verify(ops, slot_suffix, out_data, out_cmdline);
 		} else {
