@@ -3,7 +3,7 @@
 # Can't build ATF image or SPL with ld.lld yet
 LD=aarch64-linux-androidkernel-ld
 
-SWIG_LIB=${ROOT_DIR}/external/swig/Lib
+SWIG_LIB=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/share/swig
 
 # llvm-objcopy: error: unknown argument '--pad-to=8355840'
 OBJCOPY=aarch64-linux-androidkernel-objcopy

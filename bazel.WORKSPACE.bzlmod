@@ -1,4 +1,1 @@
-local_repository(
-    name = "swig",
-    path = "external/swig",
-)
+

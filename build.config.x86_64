@@ -7,7 +7,7 @@ LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-a
 # TODO(b/164420327): ld.lld builds, but does not boot
 LD=ld.bfd
 
-SWIG_LIB=${ROOT_DIR}/external/swig/Lib
+SWIG_LIB=${ROOT_DIR}/prebuilts/kernel-build-tools/linux-x86/share/swig
 
 MAKE_GOALS="
 "
