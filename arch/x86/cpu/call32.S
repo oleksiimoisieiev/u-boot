@@ -31,7 +31,7 @@ cpu_call32:
 	push	%rdi	/* 32-bit code segment */
 	lea	compat(%rip), %rax
 	push	%rax
-	retfq
+	lretq
 .code32
 compat:
 	/*
@@ -58,4 +58,4 @@ compat:
 	/* Jump to the required target */
 	pushl	%edi	/* 32-bit code segment */
 	pushl	%esi	/* 32-bit target address */
-	retfl
+	lretl

@@ -30,8 +30,8 @@ start16:
 	wbinvd
 
 	/* load the temporary Global Descriptor Table */
-data32 cs	lidt	idt_ptr
-data32 cs	lgdt	gdt_ptr
+cs data32	lidt	idt_ptr
+cs data32	lgdt	gdt_ptr
 
 	/* Now, we enter protected mode */
 	movl	%cr0, %eax
@@ -44,7 +44,7 @@ ff:
 
 	/* Finally restore BIST and jump to the 32-bit initialization code */
 	movl	%ecx, %eax
-data32 cs	ljmp	*code32start
+	ljmpl	*%cs:(code32start)
 
 	/* 48-bit far pointer */
 code32start:

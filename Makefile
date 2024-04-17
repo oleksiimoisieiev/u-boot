@@ -453,8 +453,6 @@ endif
 CPP += $(CLANG_TARGET)
 KBUILD_CFLAGS += $(CLANG_TARGET) $(CLANG_GCC_TC) $(CLANG_PREFIX)
 KBUILD_AFLAGS += $(CLANG_TARGET) $(CLANG_GCC_TC) $(CLANG_PREFIX)
-KBUILD_CFLAGS += $(call cc-option, -no-integrated-as) -gdwarf-4
-KBUILD_AFLAGS += $(call cc-option, -no-integrated-as) -gdwarf-4
 endif
 
 # Don't generate position independent code
@@ -1286,7 +1284,7 @@ spl/u-boot-spl.srec: spl/u-boot-spl FORCE
 	$(Q)$(MAKE) $(build)=arch/arm/mach-rmobile $@
 
 OBJCOPYFLAGS_u-boot-nodtb.bin := -O binary \
-		$(if $(CONFIG_X86_16BIT_INIT),-R .start16 -R .resetvec) \
+		$(if $(CONFIG_X86_16BIT_INIT),-R .start16 -R .resetvec -R .debug_info -R .debug_aranges -R .debug_line) \
 		$(if $(CONFIG_MPC85XX_HAVE_RESET_VECTOR),$(if $(CONFIG_OF_SEPARATE),-R .bootpg -R .resetvec))
 
 binary_size_check: u-boot-nodtb.bin FORCE

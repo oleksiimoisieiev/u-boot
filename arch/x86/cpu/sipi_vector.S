@@ -59,7 +59,7 @@ ap_start16:
 	movw	%ax, %bp
 
 	/* Jump to ap_start within U-Boot */
-data32 cs	ljmp	*(%bp)
+	ljmpl *%cs:(%bp)
 
 	.align	4
 .globl sipi_params_16bit
