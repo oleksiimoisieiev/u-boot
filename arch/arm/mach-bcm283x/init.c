@@ -19,7 +19,7 @@
 #ifdef CONFIG_ARM64
 #include <asm/armv8/mmu.h>
 
-#define MEM_MAP_MAX_ENTRIES (4)
+#define MEM_MAP_MAX_ENTRIES (5)
 
 static struct mm_region bcm283x_mem_map[MEM_MAP_MAX_ENTRIES] = {
 	{
@@ -80,6 +80,14 @@ static struct mm_region bcm2712_mem_map[MEM_MAP_MAX_ENTRIES] = {
 		/* Beginning of AXI bus where uSD controller lives */
 		.virt = 0x1000000000UL,
 		.phys = 0x1000000000UL,
+		.size = 0x0002000000UL,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* Beginning of PCIe section */
+		.virt = 0x1f00000000UL,
+		.phys = 0x1f00000000UL,
 		.size = 0x0002000000UL,
 		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 			 PTE_BLOCK_NON_SHARE |
