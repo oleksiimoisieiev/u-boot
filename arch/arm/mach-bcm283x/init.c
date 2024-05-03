@@ -165,6 +165,27 @@ static void rpi_update_mem_map(void)
 static void rpi_update_mem_map(void) {}
 #endif
 
+#ifdef CONFIG_BCM2712
+static void rpi_set_pclk_rate(void)
+{
+	int len;
+	const int *cell;
+	int offset = fdt_path_offset(gd->fdt_blob, "/clocks/macb_pclk");
+
+	if (!offset)
+		return;
+
+	cell = fdt_getprop(gd->fdt_blob, offset, "clock-frequency", &len);
+
+	if (!cell || len < sizeof(int))
+		return;
+
+	gd->arch.macb_pclk_rate_hz = (int)fdt32_to_cpu(*cell);
+}
+#else
+static void rpi_set_pclk_rate(void) {}
+#endif
+
 /* Default bcm283x devices addresses */
 unsigned long rpi_mbox_base  = 0x3f00b880;
 unsigned long rpi_sdhci_base = 0x3f300000;
@@ -184,6 +205,7 @@ int mach_cpu_init(void)
 	u64 io_base, size;
 
 	rpi_update_mem_map();
+	rpi_set_pclk_rate();
 
 	/* Get IO base from device tree */
 	soc = fdt_path_offset(gd->fdt_blob, "/soc");
