@@ -43,6 +43,7 @@
 #include <linux/errno.h>
 
 #include "macb.h"
+#include "phys2bus.h"
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -140,6 +141,12 @@ struct macb_device {
 	unsigned long		pclk_rate;
 #endif
 	phy_interface_t		phy_interface;
+
+#if CONFIG_GPIO
+	struct gpio_desc	phy_reset_gpio;
+	int					phy_reset_ms;
+#endif
+	struct udevice *udev;
 };
 
 struct macb_usrio_cfg {
@@ -192,7 +199,8 @@ static void macb_mdio_write(struct macb_device *macb, u8 phy_adr, u8 reg,
 	unsigned long netctl;
 	unsigned long netstat;
 	unsigned long frame;
-
+	printf("======= %s %d phy_addr %x reg %x value %x\n", __func__, __LINE__,
+			phy_adr, reg, value);
 	netctl = macb_readl(macb, NCR);
 	netctl |= MACB_BIT(MPE);
 	macb_writel(macb, NCR, netctl);
@@ -219,7 +227,8 @@ static u16 macb_mdio_read(struct macb_device *macb, u8 phy_adr, u8 reg)
 	unsigned long netctl;
 	unsigned long netstat;
 	unsigned long frame;
-
+//	printf("======= %s %d phy_addr %x reg %x\n", __func__, __LINE__,
+//			phy_adr, reg);
 	netctl = macb_readl(macb, NCR);
 	netctl |= MACB_BIT(MPE);
 	macb_writel(macb, NCR, netctl);
@@ -240,7 +249,8 @@ static u16 macb_mdio_read(struct macb_device *macb, u8 phy_adr, u8 reg)
 	netctl = macb_readl(macb, NCR);
 	netctl &= ~MACB_BIT(MPE);
 	macb_writel(macb, NCR, netctl);
-
+//	printf("======= %s %d phy_addr %x reg %x result = %x\n", __func__, __LINE__,
+//				phy_adr, reg, MACB_BFEXT(DATA, frame));
 	return MACB_BFEXT(DATA, frame);
 }
 
@@ -259,7 +269,7 @@ int macb_miiphy_read(struct mii_dev *bus, int phy_adr, int devad, int reg)
 
 	arch_get_mdio_control(bus->name);
 	value = macb_mdio_read(macb, phy_adr, reg);
-
+	printf("=== %s %d \n", __func__, __LINE__);
 	return value;
 }
 
@@ -271,7 +281,23 @@ int macb_miiphy_write(struct mii_dev *bus, int phy_adr, int devad, int reg,
 
 	arch_get_mdio_control(bus->name);
 	macb_mdio_write(macb, phy_adr, reg, value);
+	printf("=== %s %d \n", __func__, __LINE__);
+	return 0;
+}
 
+#define msleep(x) udelay(x * 1000);
+
+static int macb_miiphy_reset(struct mii_dev *bus)
+{
+#if CONFIG_GPIO
+	struct udevice *dev = eth_get_dev_by_name(bus->name);
+	struct macb_device *macb = dev_get_priv(dev);
+	printf("=== %s %d reset-ms = %x\n", __func__, __LINE__, macb->phy_reset_ms);
+
+	dm_gpio_set_value(&macb->phy_reset_gpio, 1);
+	msleep(macb->phy_reset_ms);
+	dm_gpio_set_value(&macb->phy_reset_gpio, 0);
+#endif
 	return 0;
 }
 #endif
@@ -280,36 +306,44 @@ int macb_miiphy_write(struct mii_dev *bus, int phy_adr, int devad, int reg,
 #define TX	0
 static inline void macb_invalidate_ring_desc(struct macb_device *macb, bool rx)
 {
+	unsigned long paddr;
 	if (rx)
-		invalidate_dcache_range(macb->rx_ring_dma,
-			ALIGN(macb->rx_ring_dma + MACB_RX_DMA_DESC_SIZE,
+		invalidate_dcache_range((ulong)(macb->rx_ring),
+			ALIGN((ulong)(macb->rx_ring) + MACB_RX_DMA_DESC_SIZE,
 			      PKTALIGN));
-	else
-		invalidate_dcache_range(macb->tx_ring_dma,
-			ALIGN(macb->tx_ring_dma + MACB_TX_DMA_DESC_SIZE,
+	else {
+		paddr = (unsigned long)macb->tx_ring;// - 0x1100000000;
+		//paddr = dev_bus_to_phys(macb->udev, macb->tx_ring_dma);
+		invalidate_dcache_range(paddr,
+			ALIGN(paddr + MACB_TX_DMA_DESC_SIZE,
 			      PKTALIGN));
+	}
 }
 
 static inline void macb_flush_ring_desc(struct macb_device *macb, bool rx)
 {
+	unsigned long paddr;
 	if (rx)
-		flush_dcache_range(macb->rx_ring_dma, macb->rx_ring_dma +
+		flush_dcache_range((ulong)(macb->rx_ring), (ulong)(macb->rx_ring) +
 				   ALIGN(MACB_RX_DMA_DESC_SIZE, PKTALIGN));
-	else
-		flush_dcache_range(macb->tx_ring_dma, macb->tx_ring_dma +
+	else {
+		paddr = (unsigned long)macb->tx_ring;// - 0x1100000000;
+		//paddr = dev_bus_to_phys(macb->udev, macb->tx_ring_dma);
+		flush_dcache_range(paddr, paddr +
 				   ALIGN(MACB_TX_DMA_DESC_SIZE, PKTALIGN));
+	}
 }
 
 static inline void macb_flush_rx_buffer(struct macb_device *macb)
 {
-	flush_dcache_range(macb->rx_buffer_dma, macb->rx_buffer_dma +
+	flush_dcache_range((ulong)macb->rx_buffer, (ulong)macb->rx_buffer +
 			   ALIGN(macb->rx_buffer_size * MACB_RX_RING_SIZE,
 				 PKTALIGN));
 }
 
 static inline void macb_invalidate_rx_buffer(struct macb_device *macb)
 {
-	invalidate_dcache_range(macb->rx_buffer_dma, macb->rx_buffer_dma +
+	invalidate_dcache_range((ulong)macb->rx_buffer, (ulong)macb->rx_buffer +
 				ALIGN(macb->rx_buffer_size * MACB_RX_RING_SIZE,
 				      PKTALIGN));
 }
@@ -328,6 +362,7 @@ static void macb_set_addr(struct macb_device *macb, struct macb_dma_desc *desc,
 	struct macb_dma_desc_64 *desc_64;
 
 	if (macb->config->hw_dma_cap & HW_DMA_CAP_64B) {
+//		printf(" === %s:%d \n", __func__, __LINE__);
 		desc_64 = macb_64b_desc(desc);
 		desc_64->addrh = upper_32_bits(addr);
 	}
@@ -337,12 +372,14 @@ static void macb_set_addr(struct macb_device *macb, struct macb_dma_desc *desc,
 static int _macb_send(struct macb_device *macb, const char *name, void *packet,
 		      int length)
 {
-	unsigned long paddr, ctrl;
+	unsigned long paddr, dmaaddr, ctrl;
 	unsigned int tx_head = macb->tx_head;
 	int i;
+	//ulong data_end = data_start + roundup(length, ARCH_DMA_MINALIGN);
 
 	paddr = dma_map_single(packet, length, DMA_TO_DEVICE);
-
+	dmaaddr = dev_phys_to_bus(macb->udev, paddr);
+//	invalidate_dcache_range(data_start, data_end);
 	ctrl = length & TXBUF_FRMLEN_MASK;
 	ctrl |= MACB_BIT(TX_LAST);
 	if (tx_head == (MACB_TX_RING_SIZE - 1)) {
@@ -355,14 +392,16 @@ static int _macb_send(struct macb_device *macb, const char *name, void *packet,
 	if (macb->config->hw_dma_cap & HW_DMA_CAP_64B)
 		tx_head = tx_head * 2;
 
+	//memcpy((void *)data_start, packet, length);
 	macb->tx_ring[tx_head].ctrl = ctrl;
-	macb_set_addr(macb, &macb->tx_ring[tx_head], paddr);
-
+//	paddr = paddr + 0x110531c000;//0x1ebd000010;
+	macb_set_addr(macb, &macb->tx_ring[tx_head], dmaaddr);
+//	printk("=== %s %d ring addr = %x ctrl = %x dma_addr = %lx tx_ring_dma= %lx \n", __func__, __LINE__, macb->tx_ring[tx_head].addr,
+//			macb->tx_ring[tx_head].ctrl, dmaaddr, macb->tx_ring_dma);
 	barrier();
 	macb_flush_ring_desc(macb, TX);
 	macb_writel(macb, NCR, MACB_BIT(TE) | MACB_BIT(RE) | MACB_BIT(TSTART));
-
-	/*
+        /*
 	 * I guess this is necessary because the networking core may
 	 * re-use the transmit buffer as soon as we return...
 	 */
@@ -374,8 +413,13 @@ static int _macb_send(struct macb_device *macb, const char *name, void *packet,
 			break;
 		udelay(1);
 	}
+//        printf("=== %s %d NSR = %x  TSR = %x RSR = %x, ctrl = %x status = "
+//               "%x\n",
+//               __func__, __LINE__, macb_readl(macb, NSR), macb_readl(macb, TSR),
+//               macb_readl(macb, RSR), readl(macb->regs + 0x4000),
+//               readl(macb->regs + 0x4004));
 
-	dma_unmap_single(paddr, length, DMA_TO_DEVICE);
+        dma_unmap_single(paddr, length, DMA_TO_DEVICE);
 
 	if (i <= MACB_TX_TIMEOUT) {
 		if (ctrl & MACB_BIT(TX_UNDERRUN))
@@ -663,6 +707,20 @@ int __weak macb_linkspd_cb(struct udevice *dev, unsigned int speed)
 
 	return 0;
 }
+static void gem_init_axi(struct macb_device *bp) {
+        u32 amp;
+
+        /* AXI pipeline setup - don't touch values unless specified in device
+         * tree. Some hardware could have reset values > 1.
+         */
+        amp = gem_readl(bp, AMP);
+
+        amp = GEM_BFINS(AW2B_FILL, 1 /*bp->use_aw2b_fill*/, amp);
+                amp = GEM_BFINS(AW2W_MAX_PIPE, 8, amp);
+                amp = GEM_BFINS(AR2R_MAX_PIPE, 8, amp);
+
+        gem_writel(bp, AMP, amp);
+}
 
 static int macb_phy_init(struct udevice *dev, const char *name)
 {
@@ -687,7 +745,7 @@ static int macb_phy_init(struct udevice *dev, const char *name)
 			printf("%s: No PHY present\n", name);
 			return -ENODEV;
 		}
-
+		printk("=== %s %d \n", __func__, __LINE__);
 #ifdef CONFIG_PHYLIB
 		macb->phydev = phy_connect(macb->bus, macb->phy_addr, dev,
 				     macb->phy_interface);
@@ -698,7 +756,38 @@ static int macb_phy_init(struct udevice *dev, const char *name)
 
 		phy_config(macb->phydev);
 #endif
+//		[    6.437631] === rp1_pinctrl_probe 1555 gpio_base = 0000000070ed56e1
+//		[    6.443930] === rp1_pinctrl_probe 1556 rio_base = 0000000079d13dfd
+//		[    6.450135] === rp1_pinctrl_probe 1557 pads_base = 000000004c2feb97
+//		[    6.456425] === rp1_pinctrl_probe 1581 gpio_base = 0000000070ed56e1 off=0 v=20
+//		[    6.463674] === rp1_pinctrl_probe 1583 rio_base = 0000000079d13dfd off =0
+//		[    6.470487] === rp1_pinctrl_probe 1584 pads_base = 000000004c2feb97 off=4 v=10
+//		[    6.477737] === rp1_pinctrl_probe 1581 gpio_base = 0000000070ed56e1 off=4000 v=20
+//		[    6.485248] === rp1_pinctrl_probe 1583 rio_base = 0000000079d13dfd off =4000
+//		[    6.492322] === rp1_pinctrl_probe 1584 pads_base = 000000004c2feb97 off=4004 v=10
+//		[    6.499833] === rp1_pinctrl_probe 1581 gpio_base = 0000000070ed56e1 off=8000 v=20
+//		[    6.507349] === rp1_pinctrl_probe 1583 rio_base = 0000000079d13dfd off =8000
+//		[    6.514425] === rp1_pinctrl_probe 1584 pads_base = 000000004c2feb97 off=8004 v=10
+//		[    6.522034] ======== rp1_gpio_get_direction 723
+//		[    6.527061] ======= macb_probe 5180 macb->regs = 00000000fc9ab9f9
+//		[    6.533196] ======== rp1_gpio_get_direction 723
+//		[    6.537745] ======== rp1_gpio_set_config 769 config= 276
+//		[    6.543074] ======== rp1_pinconf_set 1312 pin = 4
+//		[    6.547792] ======== rp1_pinconf_set 1408 pin = 4
+//		[    6.552509] ======== rp1_gpio_set_config 769 config= 8
+//		[    6.557664] ======== rp1_pinconf_set 1312 pin = 4
+//		[    6.562381] ======== rp1_pinconf_set 1408 pin = 4
+//		[    6.567099] ======== rp1_gpio_direction_output 753
+//		[    6.571904] === rp1_set_value 689 val = 10, base = 00000000cdbef118 off=2000
+//		[    6.571905] === rp1_set_dir 674 val = 10, base = 00000000cdbef118 off=2004
+//		[    6.578985] === rp1_pad_update 607 val = d6, base = 000000008adf7702 off=0
+//		[    6.585891] === rp1_pad_update 607 val = 56, base = 000000008adf7702 off=0
+//		[    6.592790] === rp1_set_fsel 656 val = 85, base = 000000006d8b8bc0 off=4
+//		[    6.599783] === rp1_set_value 689 val = 10, base = 00000000cdbef118 off=3000
+//		[    6.621495] === rp1_set_value 689 val = 10, base = 00000000cdbef118 off=2000
 
+
+		printk("=== %s %d \n", __func__, __LINE__);
 		status = macb_mdio_read(macb, macb->phy_addr, MII_BMSR);
 		if (!(status & BMSR_LSTATUS)) {
 			/* Try to re-negotiate if we don't have link already. */
@@ -723,7 +812,7 @@ static int macb_phy_init(struct udevice *dev, const char *name)
 			       name, status);
 			return -ENETDOWN;
 		}
-
+		printk("=== %s %d \n", __func__, __LINE__);
 		/* First check for GMAC and that it is GiB capable */
 		if (gem_is_gigabit_capable(macb)) {
 			lpa = macb_mdio_read(macb, macb->phy_addr, MII_STAT1000);
@@ -813,7 +902,7 @@ static int gmac_init_multi_queues(struct macb_device *macb)
 
 	macb->dummy_desc->ctrl = MACB_BIT(TX_USED);
 	macb->dummy_desc->addr = 0;
-	flush_dcache_range(macb->dummy_desc_dma, macb->dummy_desc_dma +
+	flush_dcache_range((ulong)macb->dummy_desc, (ulong)macb->dummy_desc +
 			ALIGN(MACB_TX_DUMMY_DMA_DESC_SIZE, PKTALIGN));
 	paddr = macb->dummy_desc_dma;
 
@@ -871,7 +960,7 @@ static int _macb_init(struct udevice *dev, const char *name)
 	 * macb_halt should have been called at some point before now,
 	 * so we'll assume the controller is idle.
 	 */
-
+	printf("=== %s %d \n", __func__, __LINE__);
 	/* initialize DMA descriptors */
 	paddr = macb->rx_buffer_dma;
 	for (i = 0; i < MACB_RX_RING_SIZE; i++) {
@@ -885,9 +974,10 @@ static int _macb_init(struct udevice *dev, const char *name)
 		macb_set_addr(macb, &macb->rx_ring[count], paddr);
 		paddr += macb->rx_buffer_size;
 	}
+	printf("=== %s %d \n", __func__, __LINE__);
 	macb_flush_ring_desc(macb, RX);
 	macb_flush_rx_buffer(macb);
-
+	printf("=== %s %d \n", __func__, __LINE__);
 	for (i = 0; i < MACB_TX_RING_SIZE; i++) {
 		if (macb->config->hw_dma_cap & HW_DMA_CAP_64B)
 			count = i * 2;
@@ -900,13 +990,14 @@ static int _macb_init(struct udevice *dev, const char *name)
 		else
 			macb->tx_ring[count].ctrl = MACB_BIT(TX_USED);
 	}
+	printf("=== %s %d \n", __func__, __LINE__);
 	macb_flush_ring_desc(macb, TX);
-
+	printf("=== %s %d \n", __func__, __LINE__);
 	macb->rx_tail = 0;
 	macb->tx_head = 0;
 	macb->tx_tail = 0;
 	macb->next_rx_tail = 0;
-
+	printf("=== %s %d \n", __func__, __LINE__);
 #ifdef CONFIG_MACB_ZYNQ
 	gem_writel(macb, DMACFG, MACB_ZYNQ_GEM_DMACR_INIT);
 #endif
@@ -914,11 +1005,14 @@ static int _macb_init(struct udevice *dev, const char *name)
 	macb_writel(macb, RBQP, lower_32_bits(macb->rx_ring_dma));
 	macb_writel(macb, TBQP, lower_32_bits(macb->tx_ring_dma));
 	if (macb->config->hw_dma_cap & HW_DMA_CAP_64B) {
+		printf("=== %s %d \n", __func__, __LINE__);
 		macb_writel(macb, RBQPH, upper_32_bits(macb->rx_ring_dma));
 		macb_writel(macb, TBQPH, upper_32_bits(macb->tx_ring_dma));
 	}
-
+	printf("=== %s %d \n", __func__, __LINE__);
+	gem_init_axi(macb);
 	if (macb_is_gem(macb)) {
+		printf("=== %s %d \n", __func__, __LINE__);
 		/* Initialize DMA properties */
 		gmac_configure_dma(macb);
 		/* Check the multi queue and initialize the queue for tx */
@@ -968,7 +1062,7 @@ static int _macb_init(struct udevice *dev, const char *name)
 			macb_writel(macb, USRIO, macb->config->usrio->mii);
 #endif
 	}
-
+	printk("=== %s %d \n", __func__, __LINE__);
 	ret = macb_phy_init(dev, name);
 	if (ret)
 		return ret;
@@ -1079,7 +1173,7 @@ static u32 macb_dbw(struct macb_device *macb)
 	}
 }
 
-static void _macb_eth_initialize(struct macb_device *macb)
+static void _macb_eth_initialize(struct macb_device *macb, struct udevice *dev)
 {
 	int id = 0;	/* This is not used by functions we call */
 	u32 ncfgr;
@@ -1093,13 +1187,28 @@ static void _macb_eth_initialize(struct macb_device *macb)
 	macb->rx_buffer = dma_alloc_coherent(macb->rx_buffer_size *
 					     MACB_RX_RING_SIZE,
 					     &macb->rx_buffer_dma);
+
+	macb->rx_buffer_dma = dev_phys_to_bus(dev, (ulong)macb->rx_buffer);
+
 	macb->rx_ring = dma_alloc_coherent(MACB_RX_DMA_DESC_SIZE,
 					   &macb->rx_ring_dma);
+
+	macb->rx_ring_dma = dev_phys_to_bus(dev, (ulong)macb->rx_ring);
+
 	macb->tx_ring = dma_alloc_coherent(MACB_TX_DMA_DESC_SIZE,
-					   &macb->tx_ring_dma);
+			   &macb->tx_ring_dma);
+
+	macb->tx_ring_dma = dev_phys_to_bus(dev, (ulong)macb->tx_ring);
+
+	//macb->tx_ring_dma = macb->tx_ring_dma = 0x1105318000;
 	macb->dummy_desc = dma_alloc_coherent(MACB_TX_DUMMY_DMA_DESC_SIZE,
 					   &macb->dummy_desc_dma);
 
+	macb->dummy_desc_dma = dev_phys_to_bus(dev, (ulong)macb->dummy_desc);
+	printf(
+				   "Allocated TX ring for queue %u of %d bytes at %08lx (mapped %p) phys_dma_off= %lx\n",
+				   0, MACB_TX_DMA_DESC_SIZE, (unsigned long)macb->tx_ring_dma,
+				   macb->tx_ring, dev_get_dma_offset(dev));
 	/*
 	 * Do some basic initialization so that we at least can talk
 	 * to the PHY
@@ -1116,6 +1225,8 @@ static void _macb_eth_initialize(struct macb_device *macb)
 
 static int macb_start(struct udevice *dev)
 {
+	printf("======= %s %d\n", __func__, __LINE__);
+
 	return _macb_init(dev, dev->name);
 }
 
@@ -1173,29 +1284,46 @@ static const struct eth_ops macb_eth_ops = {
 static int macb_enable_clk(struct udevice *dev)
 {
 	struct macb_device *macb = dev_get_priv(dev);
-	struct clk clk;
-	ulong clk_rate;
+//	struct clk clk, hclk;
+	struct clk tsu_clk;
+//	ulong clk_rate;
 	int ret;
-
-	ret = clk_get_by_index(dev, 0, &clk);
+	printf("======= %s %d\n", __func__, __LINE__);
+	/* ret = clk_get_by_name(dev, "pclk", &clk); */
+	/* if (ret) */
+	/* 	return -EINVAL; */
+	/* printf("======= %s %d\n", __func__, __LINE__); */
+	/* ret = clk_get_by_name(dev, "hclk", &hclk); */
+	/* if (ret) */
+	/* 	return -EINVAL; */
+	printf("======= %s %d\n", __func__, __LINE__);
+	ret = clk_get_by_name_optional(dev, "tsu_clk", &tsu_clk);
 	if (ret)
 		return -EINVAL;
-
+	printf("======= %s %d\n", __func__, __LINE__);
 	/*
 	 * If clock driver didn't support enable or disable then
 	 * we get -ENOSYS from clk_enable(). To handle this, we
 	 * don't fail for ret == -ENOSYS.
 	 */
-	ret = clk_enable(&clk);
+	/* ret = clk_enable(&clk); */
+	/* if (ret && ret != -ENOSYS) */
+	/* 	return ret; */
+	/* printf("======= %s %d\n", __func__, __LINE__); */
+	/* ret = clk_enable(&hclk); */
+	/* if (ret && ret != -ENOSYS) */
+	/* 	return ret; */
+	printf("======= %s %d\n", __func__, __LINE__);
+	ret = clk_enable(&tsu_clk);
 	if (ret && ret != -ENOSYS)
 		return ret;
-
-	clk_rate = clk_get_rate(&clk);
-	if (!clk_rate)
-		return -EINVAL;
-
-	macb->pclk_rate = clk_rate;
-
+	printf("======= %s %d\n", __func__, __LINE__);
+	/* clk_rate = clk_get_rate(&clk); */
+	/* if (!clk_rate) */
+	/* 	return -EINVAL; */
+      	printf("======= %s %d\n", __func__, __LINE__);
+        macb->pclk_rate = 0xbebc200;
+        printf("======= %s %d\n", __func__, __LINE__);
 	return 0;
 }
 #endif
@@ -1220,37 +1348,47 @@ static int macb_eth_probe(struct udevice *dev)
 	struct macb_device *macb = dev_get_priv(dev);
 	struct ofnode_phandle_args phandle_args;
 	int ret;
-
+	printf("======= %s %d\n", __func__, __LINE__);
 	macb->phy_interface = dev_read_phy_mode(dev);
 	if (macb->phy_interface == PHY_INTERFACE_MODE_NA)
 		return -EINVAL;
-
+	printf("======= %s %d\n", __func__, __LINE__);
+	macb->udev = dev;
 	/* Read phyaddr from DT */
 	if (!dev_read_phandle_with_args(dev, "phy-handle", NULL, 0, 0,
 					&phandle_args))
 		macb->phy_addr = ofnode_read_u32_default(phandle_args.node,
 							 "reg", -1);
+	printf("======= %s %d\n", __func__, __LINE__);
 
 	macb->regs = (void *)(uintptr_t)pdata->iobase;
+	printf("======= %s %d macb->regs = %p pdata->iobase = %llx\n", __func__, __LINE__,
+			macb->regs, pdata->iobase);
 
 	macb->is_big_endian = (cpu_to_be32(0x12345678) == 0x12345678);
+	printf("======= %s %d\n", __func__, __LINE__);
 
 	macb->config = (struct macb_config *)dev_get_driver_data(dev);
+	printf("======= %s %d\n", __func__, __LINE__);
 	if (!macb->config) {
+		printf("======= %s %d\n", __func__, __LINE__);
 		if (IS_ENABLED(CONFIG_DMA_ADDR_T_64BIT)) {
+			printf("======= %s %d macb->regs = %p\n", __func__, __LINE__, macb->regs);
 			if (GEM_BFEXT(DAW64, gem_readl(macb, DCFG6)))
 				default_gem_config.hw_dma_cap = HW_DMA_CAP_64B;
+			printf("======= %s %d\n", __func__, __LINE__);
 		}
 		macb->config = &default_gem_config;
 	}
+	printf("======= %s %d\n", __func__, __LINE__);
 
 #ifdef CONFIG_CLK
 	ret = macb_enable_clk(dev);
 	if (ret)
 		return ret;
 #endif
-
-	_macb_eth_initialize(macb);
+	printf("======= %s %d\n", __func__, __LINE__);
+	_macb_eth_initialize(macb, dev);
 
 #if defined(CONFIG_CMD_MII) || defined(CONFIG_PHYLIB)
 	macb->bus = mdio_alloc();
@@ -1259,13 +1397,14 @@ static int macb_eth_probe(struct udevice *dev)
 	strlcpy(macb->bus->name, dev->name, MDIO_NAME_LEN);
 	macb->bus->read = macb_miiphy_read;
 	macb->bus->write = macb_miiphy_write;
+	macb->bus->reset = macb_miiphy_reset;
 
 	ret = mdio_register(macb->bus);
 	if (ret < 0)
 		return ret;
 	macb->bus = miiphy_get_dev_by_name(dev->name);
 #endif
-
+	printf("======= %s %d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -1300,6 +1439,7 @@ static int macb_eth_of_to_plat(struct udevice *dev)
 	void *blob = (void *)gd->fdt_blob;
 	int node = dev_of_offset(dev);
 	int fl_node, speed_fdt;
+	int ret;
 
 	/* fetch 'fixed-link' property */
 	fl_node = fdt_subnode_offset(blob, node, "fixed-link");
@@ -1318,11 +1458,23 @@ static int macb_eth_of_to_plat(struct udevice *dev)
 			return -EINVAL;
 		}
 	}
-
+	printf("======= %s %d %s\n", __func__, __LINE__, dev->name);
 	pdata->iobase = (uintptr_t)dev_remap_addr(dev);
+	printf("======= %s %d %s %llx\n", __func__, __LINE__, dev->name, pdata->iobase);
 	if (!pdata->iobase)
 		return -EINVAL;
 
+	/* optional PHY reset-related properties */
+	ret = gpio_request_by_name(dev, "phy-reset-gpios", 0, &macb->phy_reset_gpio,
+							GPIOD_IS_OUT);
+	if (ret) {
+		printf("Failed to obtain phy-reset gpio\n");
+		return ret;
+	}
+
+	macb->phy_reset_ms = ofnode_read_s32_default(dev_ofnode(dev), "phy-reset-duration", 10);
+
+	printf("======= %s %d %s\n", __func__, __LINE__, dev->name);
 	return macb_late_eth_of_to_plat(dev);
 }
 
