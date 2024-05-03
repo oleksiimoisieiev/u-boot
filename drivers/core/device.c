@@ -270,6 +270,7 @@ int device_bind_by_name(struct udevice *parent, bool pre_reloc_only,
 #if CONFIG_IS_ENABLED(OF_PLATDATA)
 	plat_size = info->plat_size;
 #endif
+
 	ret = device_bind_common(parent, drv, info->name, (void *)info->plat, 0,
 				 ofnode_null(), plat_size, devp);
 	if (ret)
@@ -473,7 +474,7 @@ static int device_get_dma_constraints(struct udevice *dev)
 		return ret;
 	}
 
-	dev_set_dma_offset(dev, cpu - bus);
+	dev_set_dma_offset(dev, (ulong)(-0x1000000000LL));
 
 	return 0;
 }
