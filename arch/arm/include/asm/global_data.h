@@ -107,6 +107,10 @@ struct arch_global_data {
 #ifdef CONFIG_SMBIOS
 	ulong smbios_start;		/* Start address of SMBIOS table */
 #endif
+#ifdef CONFIG_BCM2712
+	/* "static data" needed by bcm2712 clk.h */
+	unsigned long	macb_pclk_rate_hz;
+#endif
 };
 
 #include <asm-generic/global_data.h>
