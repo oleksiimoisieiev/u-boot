@@ -38,6 +38,8 @@ CONFIG_CMD_BOOTZ=y
 CONFIG_GZIP=y
 CONFIG_LZ4=y
 
+# Textual boot menu support
+CONFIG_CMD_BOOTMENU=y
 # Other OS support (EFI system partition)
 CONFIG_CMD_BOOTEFI=y
 # CONFIG_CMD_BOOTEFI_HELLO_COMPILE is not set
