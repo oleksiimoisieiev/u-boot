@@ -24,7 +24,8 @@
 #include <asm/u-boot.h> /* boot information for Linux kernel */
 #include <vsprintf.h>
 #endif	/* __ASSEMBLY__ */
-
+#define PP(fmt, ...) \
+	printf("==== %s %d " fmt "\n", __func__, __LINE__, ##__VA_ARGS__);
 /* Pull in stuff for the build system */
 #ifdef DO_DEPS_ONLY
 # include <env_internal.h>
