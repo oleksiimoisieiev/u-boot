@@ -261,10 +261,12 @@ int genimg_get_format(const void *img_addr)
 		const struct legacy_img_hdr *hdr;
 
 		hdr = (const struct legacy_img_hdr *)img_addr;
+		PP("magic = %lx ih_magic = %lx", image_get_magic(hdr),IH_MAGIC);
 		if (image_check_magic(hdr))
 			return IMAGE_FORMAT_LEGACY;
 	}
 	if (CONFIG_IS_ENABLED(FIT) || CONFIG_IS_ENABLED(OF_LIBFDT)) {
+		PP("fdt_magic = %lx magic = 0xd00dfeed", fdt_magic(img_addr));
 		if (!fdt_check_header(img_addr))
 			return IMAGE_FORMAT_FIT;
 	}
