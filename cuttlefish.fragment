@@ -64,5 +64,10 @@ CONFIG_CMD_BCB=y
 # Used by Android boot loader (oemlock/avb)
 CONFIG_ANDROID_BOOTLOADER_OEMLOCK_VIRTIO_CONSOLE_INDEX=10
 
+# Enable tracing of error codes
+CONFIG_LOG=y
+CONFIG_LOG_CONSOLE=y
+CONFIG_LOG_ERROR_RETURN=y
+
 # Must not use RNG from host.
 # CONFIG_VIRTIO_RNG is not set

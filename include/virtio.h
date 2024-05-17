@@ -32,6 +32,7 @@
 #define VIRTIO_NET_DRV_NAME	"virtio-net"
 #define VIRTIO_BLK_DRV_NAME	"virtio-blk"
 #define VIRTIO_CONSOLE_DRV_NAME	"virtio-console"
+#define VIRTIO_CONSOLE_PORT_DRV_NAME	"virtio-console-port"
 #define VIRTIO_RNG_DRV_NAME	"virtio-rng"
 
 /* Status byte for guest to report progress, and synchronize features */

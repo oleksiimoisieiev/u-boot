@@ -6,6 +6,7 @@
 #include <android_bootloader_oemlock.h>
 #include <android_bootloader_transport.h>
 #include <dm/device.h>
+#include <dm/device-internal.h>
 #include <dm/uclass.h>
 #include <serial.h>
 #include <virtio.h>
@@ -23,11 +24,19 @@ static struct udevice* get_console(void)
 {
 	static struct udevice *console = NULL;
 	if (console == NULL) {
-		if (uclass_get_nth_device_by_driver_name(UCLASS_SERIAL, console_index,
-							 VIRTIO_CONSOLE_DRV_NAME, &console)) {
-			log_err("Failed to initialize oemlock console\n");
-			return NULL;
+		int single_port = uclass_get_nth_device_by_driver_name(
+				UCLASS_SERIAL, console_index, VIRTIO_CONSOLE_DRV_NAME, &console);
+		if (single_port == 0) {
+			return console;
 		}
+		// TODO(schuffelen): Do this by console name
+		int multi_port = uclass_get_nth_device_by_driver_name(
+				UCLASS_SERIAL, console_index - 1, VIRTIO_CONSOLE_PORT_DRV_NAME, &console);
+		if (multi_port == 0) {
+			return console;
+		}
+		log_err("Failed to initialize oemlock console: %d, %d\n", single_port, multi_port);
+		return NULL;
 	}
 	return console;
 }
