@@ -1163,7 +1163,10 @@ static void _macb_eth_initialize(struct macb_device *macb, struct udevice *dev)
 					   &macb->dummy_desc_dma);
 
 	macb->dummy_desc_dma = dev_phys_to_bus(dev, (ulong)macb->dummy_desc);
-
+	printf(
+				   "Allocated TX ring for queue %u of %d bytes at %08lx (mapped %p) phys_dma_off= %lx\n",
+				   0, MACB_TX_DMA_DESC_SIZE, (unsigned long)macb->tx_ring_dma,
+				   macb->tx_ring, dev_get_dma_offset(dev));
 	/*
 	 * Do some basic initialization so that we at least can talk
 	 * to the PHY
@@ -1298,22 +1301,22 @@ static int macb_eth_probe(struct udevice *dev)
 	struct macb_device *macb = dev_get_priv(dev);
 	struct ofnode_phandle_args phandle_args;
 	int ret;
-
+	PP("");
 	macb->phy_interface = dev_read_phy_mode(dev);
 	if (macb->phy_interface == PHY_INTERFACE_MODE_NA)
 		return -EINVAL;
-
+	PP("");
 	macb->udev = dev;
 	/* Read phyaddr from DT */
 	if (!dev_read_phandle_with_args(dev, "phy-handle", NULL, 0, 0,
 					&phandle_args))
 		macb->phy_addr = ofnode_read_u32_default(phandle_args.node,
 							 "reg", -1);
-
+	PP("");
 	macb->regs = (void *)(uintptr_t)pdata->iobase;
-
+	PP("regs = %p", macb->regs);
 	macb->is_big_endian = (cpu_to_be32(0x12345678) == 0x12345678);
-
+	PP("");
 	macb->config = (struct macb_config *)dev_get_driver_data(dev);
 	if (!macb->config) {
 		if (IS_ENABLED(CONFIG_DMA_ADDR_T_64BIT)) {
@@ -1322,15 +1325,15 @@ static int macb_eth_probe(struct udevice *dev)
 		}
 		macb->config = &default_gem_config;
 	}
-
+	PP("");
 #ifdef CONFIG_CLK
 	ret = macb_enable_clk(dev);
 	if (ret)
 		return ret;
 #endif
-
+	PP("");
 	_macb_eth_initialize(macb, dev);
-
+	PP("");
 #if defined(CONFIG_CMD_MII) || defined(CONFIG_PHYLIB)
 	macb->bus = mdio_alloc();
 	if (!macb->bus)
@@ -1345,7 +1348,7 @@ static int macb_eth_probe(struct udevice *dev)
 		return ret;
 	macb->bus = miiphy_get_dev_by_name(dev->name);
 #endif
-
+	PP("");
 	return 0;
 }
 
@@ -1381,6 +1384,8 @@ static int macb_eth_of_to_plat(struct udevice *dev)
 	int node = dev_of_offset(dev);
 	int fl_node, speed_fdt;
 	int ret;
+	printf("====== %s %d\n", __func__, __LINE__);
+	PP("");
 
 	/* fetch 'fixed-link' property */
 	fl_node = fdt_subnode_offset(blob, node, "fixed-link");
@@ -1400,7 +1405,10 @@ static int macb_eth_of_to_plat(struct udevice *dev)
 		}
 	}
 
+	PP("");
 	pdata->iobase = (uintptr_t)dev_remap_addr(dev);
+//	pdata->iobase = 0x1f00100000;
+	PP("iobase = %p", pdata->iobase);
 	if (!pdata->iobase)
 		return -EINVAL;
 
