@@ -485,22 +485,6 @@ static enum bootmenu_ret bootmenu_show(int delay)
 	if (IS_ENABLED(CONFIG_CMD_BOOTEFI_BOOTMGR))
 		handle_uefi_bootnext();
 
-	/* If delay is 0 do not create menu, just run first entry */
-	if (delay == 0) {
-		option = bootmenu_getoption(0);
-		if (!option) {
-			puts("bootmenu option 0 was not found\n");
-			return BOOTMENU_RET_FAIL;
-		}
-		sep = strchr(option, '=');
-		if (!sep) {
-			puts("bootmenu option 0 is invalid\n");
-			return BOOTMENU_RET_FAIL;
-		}
-		cmd_ret = run_command(sep + 1, 0);
-		return (cmd_ret == CMD_RET_SUCCESS ? BOOTMENU_RET_SUCCESS : BOOTMENU_RET_FAIL);
-	}
-
 	bootmenu = bootmenu_create(delay);
 	if (!bootmenu)
 		return BOOTMENU_RET_FAIL;
