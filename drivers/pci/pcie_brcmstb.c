@@ -879,15 +879,15 @@ static int brcm_pcie_probe(struct udevice *dev)
 	clrbits_le32(base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY,
 		     PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK);
 
-	SETL(0x1000128010, 0x410000); //TOFO This
-//	mw.l 0x1000128014 0x400000 //todo should be 0
-	SETL(0x1000128014, 0x000000);
-//	mw.l 0x1000128018 0x00000
-	SETL(0x1000128018, 0x00000);
-//	mw.b 0x1000128004 0x000006
-	SETB(0x1000128004, 0x6);
-//	 mw.b 0x1000128005 0x000004
-	SETB(0x1000128005, 0x4);
+//	SETL(0x1000128010, 0x410000); //TOFO This
+////	mw.l 0x1000128014 0x400000 //todo should be 0
+//	SETL(0x1000128014, 0x000000);
+////	mw.l 0x1000128018 0x00000
+//	SETL(0x1000128018, 0x00000);
+////	mw.b 0x1000128004 0x000006
+//	SETB(0x1000128004, 0x6);
+////	 mw.b 0x1000128005 0x000004
+//	SETB(0x1000128005, 0x4);
 	DUMP_REG32(base, PCIE_RGR1_SW_INIT_1(pcie));
 	DUMP_REG32(base, PCIE_MISC_HARD_PCIE_HARD_DEBUG(pcie));
 	DUMP_REG32(base, PCIE_RC_PL_PHY_CTL_15);
@@ -972,7 +972,7 @@ static const struct brcm_pcie_cfg_data bcm2711_cfg = {
 static const int pcie_offsets_bcm2712[] = {
 	[RGR1_SW_INIT_1] = 0x0,
 	[EXT_CFG_INDEX] = 0x9000,
-	[EXT_CFG_DATA] = 0x9004,
+	[EXT_CFG_DATA] = 0x8000,
 	[PCIE_HARD_DEBUG] = 0x4304,
 };
 
