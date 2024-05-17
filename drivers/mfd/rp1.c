@@ -103,6 +103,7 @@ static int rp1_probe(struct udevice *dev)
 	PP("dev->name = %s", dev->name);
 	//TODO : TODO
 	dm_pci_write_config32(dev, PCI_BASE_ADDRESS_1,0);
+	dm_pci_write_config32(dev, PCI_BASE_ADDRESS_0, 0x40000);
 
 	ret = rp1_get_bar_region(dev, &rp1->bar_start);
 	if (ret)
