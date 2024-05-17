@@ -353,6 +353,9 @@ static int select_fdt(struct bootm_headers *images, const char *select, u8 arch,
 	 * check image type, for FIT images get a FIT node.
 	 */
 	buf = map_sysmem(fdt_addr, 0);
+	PP("fdt_addr = %p", fdt_addr);
+	PP("buf = %p", buf);
+	PP("fdt format = %d", genimg_get_format(buf));
 	switch (genimg_get_format(buf)) {
 #if CONFIG_IS_ENABLED(LEGACY_IMAGE_FORMAT)
 	case IMAGE_FORMAT_LEGACY: {
