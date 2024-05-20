@@ -588,3 +588,17 @@ int ft_board_setup(void *blob, struct bd_info *bd)
 
 	return 0;
 }
+
+int board_late_init(void)
+{
+	struct udevice *dev;
+	int err;
+
+	/* TODO: Check that this is RPi5 */
+	err = dm_pci_find_device(PCI_VENDOR_ID_RPI, PCI_DEVICE_ID_RP1_C0,
+				 0, &dev);
+	if (err)
+		printk("%s RP1 device not found\n", __func__);
+
+	return 0;
+}
