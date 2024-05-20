@@ -1201,12 +1201,7 @@
 			brcm,vdm-qos-map = <0xbbaa9888>;
 			aspm-no-l0s;
 			phandle = <0xaf>;
-			pcie@0,0 {
-				reg = <0x0 0x0 0x0 0x0 0x0>;
-				compatible = "pci-bridge";
-				ranges;
-				dma-ranges;
-				
+
 			rp1 {
 				compatible = "raspberrypi,rp1-mfd", "simple-bus";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
@@ -1709,7 +1704,12 @@
 							function = "uart0";
 							pins = "gpio14";
 							bias-disable;
-						};
+						};			pcie@0,0 {
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				compatible = "pci-bridge";
+				ranges;
+				dma-ranges;
+				
 
 						pin_rxd {
 							function = "uart0";
@@ -2448,7 +2448,6 @@
 					reg = <0xc0 0x400d0000 0x00 0x30000>;
 					chardev-name = "gpiomem0";
 				};
-			};
 			};
 		};
 
