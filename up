@@ -1,0 +1,13 @@
+#!/bin/bash -ex
+sudo umount /dev/sda1 | true
+sudo umount /dev/sda2 | true
+sudo mount /dev/sda1 /mnt/sdc1
+sudo cp -rf ./u-boot-env /mnt/sdc1
+sudo cp -rf ./u-boot.bin /mnt/sdc1
+sudo cp -rf ./u-boot.dtb /mnt/sdc1
+[ -f rpi5.dts ] && sudo dtc -I dts -O dtb -o /mnt/sdc1/bcm2712-rpi-5-b.dtb rpi5.dts
+#[ -f rpi5.dts ] && sudo dtc -I dts -O dtb -o /mnt/sdc1/bcm2712-rpi-5-b-k.dtb rpi5.dts
+sudo umount /dev/sda1
+
+sync
+sync
