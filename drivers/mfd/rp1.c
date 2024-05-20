@@ -25,8 +25,6 @@
 
 #define RP1_DRIVER_NAME "rp1"
 
-#define PCI_VENDOR_ID_RPI 0x1de4
-#define PCI_DEVICE_ID_RP1_C0 0x0001
 #define PCI_DEVICE_REV_RP1_C0 2
 
 #define SYSINFO_CHIP_ID_OFFSET	0x00000000
@@ -73,7 +71,7 @@ static int rp1_get_bar_region(struct udevice *dev, phys_addr_t *bar_start)
 
 
 
-	*bar_start = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_1, 0,0,
+	*bar_start = (phys_addr_t)dm_pci_map_bar(dev, PCI_BASE_ADDRESS_1, 0,0,
 			PCI_REGION_TYPE, PCI_REGION_MEM);
 //	hose = dev_get_uclass_priv(dev->parent->parent);
 //	PP("dev name = %s,",dev->name);
@@ -219,33 +217,15 @@ static const struct dm_pci_ops rp1_pcie_ops = {
 	.read_config	= rp1_pcie_read_config,
 };
 
-/*
- * Set compatible to "brcm,rp1-simple-bus" instead of "simple-bus"
- * as it was done in kernel source because u-boot doesn't probe correct
- * driver and applies simple-bus drivers to all this nodes.
- */
-
-static const struct udevice_id rp1_ids[] = {
-		{.compatible = "raspberrypi,rp1-mfd"},
-		{}
-};
-
-UCLASS_DRIVER(rp1_driver) = {
-	.id		= UCLASS_SIMPLE_BUS,
-	.name		= "rp1_driver",
-	.post_bind = rp1_bus_post_bind,
-	.per_device_plat_auto	= sizeof(struct simple_bus_plat),
-};
 U_BOOT_DRIVER(rp1_driver) = {
-	.name			= "rp1_driver",
-	.id			= UCLASS_SIMPLE_BUS,
+	.name			= "rp1",
+	.id			= UCLASS_PCI_GENERIC,
 	.probe			= rp1_probe,
 	.remove			= rp1_remove,
 	.bind 			= rp1_bind,
 	.of_to_plat		= rp1_of_to_plat,
 	.priv_auto		= sizeof(struct rp1_dev),
 	.ops			= &rp1_pcie_ops,
-	.of_match		= rp1_ids,
 //	.flags			= DM_FLAG_OS_PREPARE,
 
 };
