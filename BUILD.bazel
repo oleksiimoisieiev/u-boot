@@ -1,7 +1,7 @@
 load("@bazel_tools//tools/python:toolchain.bzl", "py_runtime_pair")
 load("@kernel_toolchain_info//:dict.bzl", "CLANG_VERSION")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//build/kernel/kleaf:kernel.bzl", "kernel_build")
+load("//build/kernel/kleaf:kernel.bzl", "kernel_build", "kernel_compile_commands")
 
 kernel_build(
     name = "beagle_x15",
@@ -35,6 +35,11 @@ kernel_build(
     ],
 )
 
+kernel_compile_commands(
+    name = "crosvm_aarch64_compile_commands",
+    kernel_build = ":crosvm_aarch64",
+)
+
 copy_to_dist_dir(
     name = "crosvm_aarch64_dist",
     data = [":crosvm_aarch64"],
@@ -54,6 +59,11 @@ kernel_build(
     deps = [
         "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
     ],
+)
+
+kernel_compile_commands(
+    name = "kiwi_compile_commands",
+    kernel_build = ":kiwi",
 )
 
 copy_to_dist_dir(
@@ -77,6 +87,11 @@ kernel_build(
     ],
 )
 
+kernel_compile_commands(
+    name = "kiwi_p_compile_commands",
+    kernel_build = ":kiwi_p",
+)
+
 copy_to_dist_dir(
     name = "kiwi_p_dist",
     data = [":kiwi_p"],
@@ -96,6 +111,11 @@ kernel_build(
     deps = [
         "//prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9:binaries",
     ],
+)
+
+kernel_compile_commands(
+    name = "qemu_x86_64_compile_commands",
+    kernel_build = ":qemu_x86_64",
 )
 
 copy_to_dist_dir(
@@ -119,6 +139,11 @@ kernel_build(
     ],
 )
 
+kernel_compile_commands(
+    name = "crosvm_x86_64_compile_commands",
+    kernel_build = ":crosvm_x86_64",
+)
+
 copy_to_dist_dir(
     name = "crosvm_x86_64_dist",
     data = [":crosvm_x86_64"],
@@ -137,6 +162,11 @@ kernel_build(
     deps = [
         "//prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9:binaries",
     ],
+)
+
+kernel_compile_commands(
+    name = "gem5_aarch64_compile_commands",
+    kernel_build = ":gem5_aarch64",
 )
 
 copy_to_dist_dir(
@@ -159,6 +189,11 @@ kernel_build(
     ],
 )
 
+kernel_compile_commands(
+    name = "qemu_aarch64_compile_commands",
+    kernel_build = ":qemu_aarch64",
+)
+
 copy_to_dist_dir(
     name = "qemu_aarch64_dist",
     data = [":qemu_aarch64"],
@@ -178,6 +213,11 @@ kernel_build(
     deps = [
         "//prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9:binaries",
     ],
+)
+
+kernel_compile_commands(
+    name = "qemu_arm_compile_commands",
+    kernel_build = ":qemu_arm",
 )
 
 copy_to_dist_dir(

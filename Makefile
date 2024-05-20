@@ -2109,6 +2109,15 @@ tags ctags:
 						-name '*.[chS]' -print`
 		ln -s ctags tags
 
+ifeq ($(CONFIG_BINMAN),y)
+compile_commands.json: System.map u-boot.bin u-boot.dtb u-boot-x86-start16.bin u-boot-x86-reset16.bin
+	$(call if_changed,binman)
+	$(srctree)/scripts/gen_compile_commands.py
+else
+compile_commands.json: System.map u-boot.bin
+	$(srctree)/scripts/gen_compile_commands.py
+endif
+
 etags:
 		etags -a -o etags `$(FIND) $(FINDFLAGS) $(TAG_SUBDIRS) \
 						-name '*.[chS]' -print`
