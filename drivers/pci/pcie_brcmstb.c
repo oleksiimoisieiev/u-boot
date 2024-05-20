@@ -907,7 +907,7 @@ static int brcm_pcie_remove(struct udevice *dev)
 {
 	struct brcm_pcie *pcie = dev_get_priv(dev);
 	void __iomem *base = pcie->base;
-
+	PP("");
 	/* Assert fundamental reset */
 	pcie->pcie_cfg->perst_set(pcie, 1);
 
