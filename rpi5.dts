@@ -1204,11 +1204,11 @@
 			pcie@0,0 {
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				compatible = "pci-bridge";
-				ranges = <>;
-				dma-ranges = <>;
+				ranges;
+				dma-ranges;
 				
 			rp1 {
-				compatible = "raspberrypi,rp1-mfd";
+				compatible = "raspberrypi,rp1-mfd", "simple-bus";
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				#address-cells = <0x02>;
 				#size-cells = <0x02>;
