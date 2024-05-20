@@ -217,23 +217,6 @@ static const struct dm_pci_ops rp1_pcie_ops = {
 	.read_config	= rp1_pcie_read_config,
 };
 
-/*
- * Set compatible to "brcm,rp1-simple-bus" instead of "simple-bus"
- * as it was done in kernel source because u-boot doesn't probe correct
- * driver and applies simple-bus drivers to all this nodes.
- */
-
-static const struct udevice_id rp1_ids[] = {
-		{.compatible = "raspberrypi,rp1-mfd"},
-		{}
-};
-
-UCLASS_DRIVER(rp1_driver) = {
-	.id		= UCLASS_SIMPLE_BUS,
-	.name		= "rp1_driver",
-	.post_bind = rp1_bus_post_bind,
-	.per_device_plat_auto	= sizeof(struct simple_bus_plat),
-};
 U_BOOT_DRIVER(rp1_driver) = {
 	.name			= "rp1_driver",
 	.id			= UCLASS_SIMPLE_BUS,
@@ -243,7 +226,6 @@ U_BOOT_DRIVER(rp1_driver) = {
 	.of_to_plat		= rp1_of_to_plat,
 	.priv_auto		= sizeof(struct rp1_dev),
 	.ops			= &rp1_pcie_ops,
-	.of_match		= rp1_ids,
 //	.flags			= DM_FLAG_OS_PREPARE,
 
 };
