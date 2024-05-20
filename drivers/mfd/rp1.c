@@ -71,7 +71,7 @@ static int rp1_get_bar_region(struct udevice *dev, phys_addr_t *bar_start)
 
 
 
-	*bar_start = dm_pci_map_bar(dev, PCI_BASE_ADDRESS_1, 0,0,
+	*bar_start = (phys_addr_t)dm_pci_map_bar(dev, PCI_BASE_ADDRESS_1, 0,0,
 			PCI_REGION_TYPE, PCI_REGION_MEM);
 //	hose = dev_get_uclass_priv(dev->parent->parent);
 //	PP("dev name = %s,",dev->name);
