@@ -102,7 +102,7 @@ static int rp1_probe(struct udevice *dev)
 	dm_pci_clrset_config16(dev, PCI_COMMAND, 0, PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY);
 	PP("dev->name = %s", dev->name);
 	//TODO : TODO
-	dm_pci_write_config32(dev, PCI_BASE_ADDRESS_1,0);
+	dm_pci_write_config32(dev, PCI_BASE_ADDRESS_1, 0);
 	dm_pci_write_config32(dev, PCI_BASE_ADDRESS_0, 0x40000);
 
 	ret = rp1_get_bar_region(dev, &rp1->bar_start);
@@ -208,6 +208,12 @@ static int rp1_pcie_read_config(const struct udevice *bus, pci_dev_t bdf,
 	*valuep = 0;
 	return 0;
 }
+static int rp1_remove(struct udevice *dev)
+{
+	PP("");
+	dm_pci_write_config16(dev, PCI_COMMAND, 0);
+	return 0;
+}
 
 static const struct dm_pci_ops rp1_pcie_ops = {
 	.read_config	= rp1_pcie_read_config,
@@ -220,7 +226,7 @@ static const struct dm_pci_ops rp1_pcie_ops = {
  */
 
 static const struct udevice_id rp1_ids[] = {
-		{.compatible = "sss-bus"},
+		{.compatible = "raspberrypi,rp1-mfd"},
 		{}
 };
 
@@ -234,11 +240,13 @@ U_BOOT_DRIVER(rp1_driver) = {
 	.name			= "rp1_driver",
 	.id			= UCLASS_SIMPLE_BUS,
 	.probe			= rp1_probe,
+	.remove			= rp1_remove,
 	.bind 			= rp1_bind,
 	.of_to_plat		= rp1_of_to_plat,
 	.priv_auto		= sizeof(struct rp1_dev),
 	.ops			= &rp1_pcie_ops,
-	//.of_match		= rp1_ids,
+	.of_match		= rp1_ids,
+//	.flags			= DM_FLAG_OS_PREPARE,
 
 };
 
