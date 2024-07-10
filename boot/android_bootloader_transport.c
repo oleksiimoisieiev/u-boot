@@ -80,7 +80,7 @@ int android_bootloader_request_response(struct udevice *console, uint32_t comman
 		.payload_size = request_size,
 	};
 	int ret;
-	printf("Writing %d bytes to %s console\n", sizeof(req_header), console->name);
+	printf("Writing %zu bytes to %s console\n", sizeof(req_header), console->name);
 	ret = console_write(console, &req_header, sizeof(req_header));
 	if (ret != sizeof(req_header)) {
 		log_err("Failed to write android bootloader request header: %d\n", ret);
@@ -97,7 +97,7 @@ int android_bootloader_request_response(struct udevice *console, uint32_t comman
 		.payload_size = response_size,
 	};
 	struct header resp_header;
-	printf("Reading %d bytes from %s console\n", sizeof(resp_header), console->name);
+	printf("Reading %zu bytes from %s console\n", sizeof(resp_header), console->name);
 	ret = console_read(console, &resp_header, sizeof(resp_header));
 	if (ret != sizeof(resp_header)) {
 		log_err("Failed to read android bootloader response header: %d\n", ret);
