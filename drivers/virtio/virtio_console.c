@@ -19,6 +19,7 @@
 #include <virtio.h>
 #include <virtio_ring.h>
 #include "dm/device.h"
+#include "linux/compat.h"
 #include "virtio_console.h"
 
 static const size_t CONTROL_BUFFER_SIZE = 64;
@@ -28,21 +29,27 @@ static const u32 features[] = {
 	VIRTIO_CONSOLE_F_MULTIPORT,
 };
 
-// Private data struct for the top-level virtio-console udevice.
-struct virtio_console_priv {
-	struct virtqueue *receiveq_control;
-	struct virtqueue *transmitq_control;
-	char control_buffers[CONTROL_QUEUE_SIZE][CONTROL_BUFFER_SIZE];
-};
+struct virtio_console_priv;
 
-// "Platform data struct", both the top-level and every child port device
-// contain one of these.
-struct virtio_console_port_plat {
+// Both the top-level and every child port device contain one of these. Because
+// a `struct virtio_console_port_priv` is the first member of `struct
+// virtio_console_priv`, it is safe to use a `struct virtio_console_priv` as a
+// `struct virtio_console_port_priv` in the `virtio_console_port` methods that
+// are shared betewen the two devices to implement `dm_serial_ops`.
+struct virtio_console_port_priv {
 	struct virtio_console_priv *console_priv;
 	struct virtqueue *receiveq;
 	struct virtqueue *transmitq;
 	int port_num;
 	unsigned char char_inbuf[1] __aligned(sizeof(void *));
+};
+
+// Private data struct for the top-level virtio-console udevice.
+struct virtio_console_priv {
+	struct virtio_console_port_priv port0;
+	struct virtqueue *receiveq_control;
+	struct virtqueue *transmitq_control;
+	char control_buffers[CONTROL_QUEUE_SIZE][CONTROL_BUFFER_SIZE];
 };
 
 static int virtqueue_blocking_send(struct virtqueue *queue, void *data,
@@ -209,31 +216,34 @@ static int virtio_console_exhaust_control_queue(struct virtio_console_priv *priv
  * Create a scatter-gather list representing our input buffer and put
  * it in the queue.
  */
-static int add_char_inbuf(struct virtio_console_port_plat *plat)
+static int add_char_inbuf(struct virtio_console_port_priv *priv)
 {
 	struct virtio_sg sg = {
-		.addr = plat->char_inbuf,
-		.length = sizeof(plat->char_inbuf),
+		.addr = priv->char_inbuf,
+		.length = sizeof(priv->char_inbuf),
 	};
 	struct virtio_sg *sgs[] = {&sg};
 
-	int ret = virtqueue_add(plat->receiveq, sgs, 0, 1);
+	int ret = virtqueue_add(priv->receiveq, sgs, 0, 1);
 
 	if (ret)
 		return log_msg_ret("Failed to add to virtqueue", ret);
 
-	virtqueue_kick(plat->receiveq);
+	virtqueue_kick(priv->receiveq);
 
 	return 0;
 }
 
 static int virtio_console_port_probe(struct udevice *dev)
 {
-	struct virtio_console_port_plat *plat = dev_get_plat(dev);
+	return 0;
+}
 
+static int virtio_console_port_post_probe(struct virtio_console_port_priv *priv)
+{
 	int ret;
 
-	ret = add_char_inbuf(plat);
+	ret = add_char_inbuf(priv);
 	if (ret)
 		return log_msg_ret("Failed to set up initial character buffer", ret);
 
@@ -242,7 +252,7 @@ static int virtio_console_port_probe(struct udevice *dev)
 	// port number. It doesn't seem to produce a VIRTIO_CONSOLE_DEVICE_ADD
 	// for each port it already has on startup, so here we  pre-emptively
 	// `OPEN` every port when we probe.
-	ret = virtio_console_send_control_message(plat->console_priv, plat->port_num,
+	ret = virtio_console_send_control_message(priv->console_priv, priv->port_num,
 						  VIRTIO_CONSOLE_PORT_OPEN, 1);
 
 	return log_msg_ret("failed to send port open message", ret);
@@ -255,23 +265,23 @@ static int virtio_console_serial_setbrg(struct udevice *dev, int baudrate)
 
 static int virtio_console_serial_pending(struct udevice *dev, bool input)
 {
-	struct virtio_console_port_plat *plat = dev_get_plat(dev);
+	struct virtio_console_port_priv *priv = dev_get_priv(dev);
 
-	return virtqueue_poll(plat->receiveq,
-			      plat->receiveq->last_used_idx);
+	return virtqueue_poll(priv->receiveq,
+			      priv->receiveq->last_used_idx);
 }
 
 static int virtio_console_port_serial_getc(struct udevice *dev)
 {
-	struct virtio_console_port_plat *plat = dev_get_plat(dev);
+	struct virtio_console_port_priv *priv = dev_get_priv(dev);
 	unsigned int len = 0;
 	unsigned char *in;
-	int ret = virtio_console_exhaust_control_queue(plat->console_priv);
+	int ret = virtio_console_exhaust_control_queue(priv->console_priv);
 
 	if (ret)
 		return ret;
 
-	in = virtqueue_get_buf(plat->receiveq, &len);
+	in = virtqueue_get_buf(priv->receiveq, &len);
 
 	if (!in)
 		return -EAGAIN;
@@ -280,7 +290,7 @@ static int virtio_console_port_serial_getc(struct udevice *dev)
 
 	int ch = *in;
 
-	ret = add_char_inbuf(plat);
+	ret = add_char_inbuf(priv);
 	if (ret)
 		return log_msg_ret("Failed to set up character buffer", ret);
 
@@ -289,24 +299,24 @@ static int virtio_console_port_serial_getc(struct udevice *dev)
 
 static int virtio_console_port_serial_putc(struct udevice *dev, const char ch)
 {
-	struct virtio_console_port_plat *plat = dev_get_plat(dev);
-	int ret = virtio_console_exhaust_control_queue(plat->console_priv);
+	struct virtio_console_port_priv *priv = dev_get_priv(dev);
+	int ret = virtio_console_exhaust_control_queue(priv->console_priv);
 
 	if (ret)
 		return ret;
 
-	return log_ret(virtqueue_blocking_send(plat->transmitq, (void *)&ch, 1));
+	return log_ret(virtqueue_blocking_send(priv->transmitq, (void *)&ch, 1));
 }
 
 static ssize_t virtio_console_port_serial_puts(struct udevice *dev, const char *s, size_t len)
 {
-	struct virtio_console_port_plat *plat = dev_get_plat(dev);
-	int ret = virtio_console_exhaust_control_queue(plat->console_priv);
+	struct virtio_console_port_priv *priv = dev_get_priv(dev);
+	int ret = virtio_console_exhaust_control_queue(priv->console_priv);
 
 	if (ret)
 		return ret;
 
-	return log_ret(virtqueue_blocking_send(plat->transmitq, (void *)s, len));
+	return log_ret(virtqueue_blocking_send(priv->transmitq, (void *)s, len));
 }
 
 static const struct dm_serial_ops virtio_console_port_serial_ops = {
@@ -332,6 +342,7 @@ U_BOOT_DRIVER(virtio_console_port) = {
 	.name	= VIRTIO_CONSOLE_PORT_DRV_NAME,
 	.id	= UCLASS_SERIAL,
 	.ops	= &virtio_console_port_serial_ops,
+	.priv_auto	= sizeof(struct virtio_console_port_priv),
 	.probe	= virtio_console_port_probe,
 	.flags	= DM_FLAG_ACTIVE_DMA,
 };
@@ -340,36 +351,35 @@ static int virtio_console_create_port(struct udevice *dev,
 				      struct virtqueue **queues,
 				      int port_num)
 {
-	struct virtio_console_port_plat *plat =
-		devm_kmalloc(dev, sizeof(struct virtio_console_port_plat), GFP_KERNEL);
+	struct virtio_console_port_priv *priv;
 	struct udevice *created_dev = NULL;
 	int ret = 0;
 
-	if (!plat)
-		return log_msg_ret("Can't allocate virtio_console_port_plat", -ENOMEM);
+	ret = device_bind(dev, DM_DRIVER_REF(virtio_console_port),
+			  "virtio_console_port", NULL, ofnode_null(),
+			  &created_dev);
+	if (ret)
+		return log_msg_ret("Can't create port device", ret);
 
-	*plat = (struct virtio_console_port_plat) {
+	ret = device_probe(created_dev);
+	if (ret)
+		return log_msg_ret("Failed to probe device", ret);
+
+	// `priv` is only allocated by `device_probe`
+	priv = dev_get_priv(created_dev);
+	*priv = (struct virtio_console_port_priv) {
 		.console_priv = dev_get_priv(dev),
 		.receiveq = queues[(port_num * 2) + 2],
 		.transmitq = queues[(port_num * 2) + 3],
 		.port_num = port_num,
 	};
 
-	ret = device_bind(dev, DM_DRIVER_REF(virtio_console_port),
-			  "virtio_console_port", plat, ofnode_null(),
-			  &created_dev);
-	if (ret) {
-		free(plat);
-		return log_msg_ret("Can't create port device", ret);
-	}
-
-	return log_msg_ret("Failed to probe device", device_probe(created_dev));
+	return log_ret(virtio_console_port_post_probe(priv));
 }
 
 static int virtio_console_probe(struct udevice *dev)
 {
 	struct virtio_console_priv *priv = dev_get_priv(dev);
-	struct virtio_console_port_plat *plat = dev_get_plat(dev);
 	int is_multiport = 0;
 	u32 max_ports = 1;
 	int num_queues = 2;
@@ -390,13 +400,13 @@ static int virtio_console_probe(struct udevice *dev)
 	if (ret)
 		return log_msg_ret("Can't find virtqueues", ret);
 
-	*plat = (struct virtio_console_port_plat) {
+	priv->port0 = (struct virtio_console_port_priv) {
 		.console_priv = priv,
 		.receiveq = virtqueues[0],
 		.transmitq = virtqueues[1],
 		.port_num = 0,
 	};
-	ret = add_char_inbuf(plat);
+	ret = add_char_inbuf(&priv->port0);
 	if (ret)
 		return log_msg_ret("Failed to set up character buffer", ret);
 
@@ -442,6 +452,5 @@ U_BOOT_DRIVER(virtio_console) = {
 	.probe	= virtio_console_probe,
 	.remove	= virtio_reset,
 	.priv_auto	= sizeof(struct virtio_console_priv),
-	.plat_auto	= sizeof(struct virtio_console_port_plat),
-	.flags	= DM_FLAG_ACTIVE_DMA | DM_FLAG_ALLOC_PDATA,
+	.flags	= DM_FLAG_ACTIVE_DMA,
 };
