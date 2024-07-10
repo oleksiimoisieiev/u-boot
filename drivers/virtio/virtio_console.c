@@ -42,7 +42,7 @@ struct virtio_console_port_plat {
 	struct virtqueue *receiveq;
 	struct virtqueue *transmitq;
 	int port_num;
-	unsigned char char_inbuf[1] __aligned(4);
+	unsigned char char_inbuf[1] __aligned(sizeof(void *));
 };
 
 static int virtqueue_blocking_send(struct virtqueue *queue, void *data,
@@ -98,7 +98,7 @@ static int fill_control_inbuf(struct virtio_console_priv *priv)
 	ret = virtqueue_add(priv->receiveq_control, sg_addrs, 0, ARRAY_SIZE(sgs));
 
 	if (ret)
-		return log_ret(ret);
+		return log_msg_ret("virtqueue_add failed", ret);
 
 	virtqueue_kick(priv->receiveq_control);
 
@@ -193,6 +193,9 @@ static int virtio_console_process_control_message(struct virtio_console_priv *pr
 
 static int virtio_console_exhaust_control_queue(struct virtio_console_priv *priv)
 {
+	if (!priv->receiveq_control || !priv->transmitq_control)
+		return 0;
+
 	while (virtio_console_control_messsage_pending(priv)) {
 		int ret = virtio_console_process_control_message(priv);
 
@@ -220,20 +223,27 @@ static int add_char_inbuf(struct virtio_console_port_plat *plat)
 		return log_msg_ret("Failed to add to virtqueue", ret);
 
 	virtqueue_kick(plat->receiveq);
+
+	return 0;
 }
 
 static int virtio_console_port_probe(struct udevice *dev)
 {
 	struct virtio_console_port_plat *plat = dev_get_plat(dev);
 
-	add_char_inbuf(plat);
+	int ret;
+
+	ret = add_char_inbuf(plat);
+	if (ret)
+		return log_msg_ret("Failed to set up initial character buffer", ret);
+
 	// QEMU will accept output on ports at any time, but will not pass
 	// through input until it receives a VIRTIO_CONSOLE_PORT_OPEN on that
 	// port number. It doesn't seem to produce a VIRTIO_CONSOLE_DEVICE_ADD
 	// for each port it already has on startup, so here we  pre-emptively
 	// `OPEN` every port when we probe.
-	int ret = virtio_console_send_control_message(plat->console_priv, plat->port_num,
-						      VIRTIO_CONSOLE_PORT_OPEN, 1);
+	ret = virtio_console_send_control_message(plat->console_priv, plat->port_num,
+						  VIRTIO_CONSOLE_PORT_OPEN, 1);
 
 	return log_msg_ret("failed to send port open message", ret);
 }
@@ -254,11 +264,14 @@ static int virtio_console_serial_pending(struct udevice *dev, bool input)
 static int virtio_console_port_serial_getc(struct udevice *dev)
 {
 	struct virtio_console_port_plat *plat = dev_get_plat(dev);
-
-	virtio_console_exhaust_control_queue(plat->console_priv);
 	unsigned int len = 0;
+	unsigned char *in;
+	int ret = virtio_console_exhaust_control_queue(plat->console_priv);
 
-	unsigned char *in = virtqueue_get_buf(plat->receiveq, &len);
+	if (ret)
+		return ret;
+
+	in = virtqueue_get_buf(plat->receiveq, &len);
 
 	if (!in)
 		return -EAGAIN;
@@ -267,7 +280,9 @@ static int virtio_console_port_serial_getc(struct udevice *dev)
 
 	int ch = *in;
 
-	add_char_inbuf(plat);
+	ret = add_char_inbuf(plat);
+	if (ret)
+		return log_msg_ret("Failed to set up character buffer", ret);
 
 	return ch;
 }
@@ -275,8 +290,10 @@ static int virtio_console_port_serial_getc(struct udevice *dev)
 static int virtio_console_port_serial_putc(struct udevice *dev, const char ch)
 {
 	struct virtio_console_port_plat *plat = dev_get_plat(dev);
+	int ret = virtio_console_exhaust_control_queue(plat->console_priv);
 
-	virtio_console_exhaust_control_queue(plat->console_priv);
+	if (ret)
+		return ret;
 
 	return log_ret(virtqueue_blocking_send(plat->transmitq, (void *)&ch, 1));
 }
@@ -284,8 +301,10 @@ static int virtio_console_port_serial_putc(struct udevice *dev, const char ch)
 static ssize_t virtio_console_port_serial_puts(struct udevice *dev, const char *s, size_t len)
 {
 	struct virtio_console_port_plat *plat = dev_get_plat(dev);
+	int ret = virtio_console_exhaust_control_queue(plat->console_priv);
 
-	virtio_console_exhaust_control_queue(plat->console_priv);
+	if (ret)
+		return ret;
 
 	return log_ret(virtqueue_blocking_send(plat->transmitq, (void *)s, len));
 }
@@ -377,7 +396,9 @@ static int virtio_console_probe(struct udevice *dev)
 		.transmitq = virtqueues[1],
 		.port_num = 0,
 	};
-	add_char_inbuf(plat);
+	ret = add_char_inbuf(plat);
+	if (ret)
+		return log_msg_ret("Failed to set up character buffer", ret);
 
 	if (is_multiport == 0) {
 		priv->receiveq_control = NULL;
@@ -403,8 +424,6 @@ static int virtio_console_probe(struct udevice *dev)
 	ret = virtio_console_send_control_message(priv, 0, VIRTIO_CONSOLE_PORT_OPEN, 1);
 	if (ret)
 		return log_msg_ret("Failed to send port open message", ret);
-
-	add_char_inbuf(plat);
 
 	for (int i = 1; i < max_ports; i++) {
 		ret = virtio_console_create_port(dev, virtqueues, i);
