@@ -851,6 +851,16 @@ static int brcm_pcie_remove(struct udevice *dev)
 	/* Shutdown bridge */
 	pcie->pcie_cfg->bridge_sw_init_set(pcie, 1);
 
+	/*
+	 * For the controllers that are utilizing reset for bridge Sw init,
+	 * such as BCM2712, reset should be deasserted after assertion.
+	 * Leaving it in asserted state may lead to unexpected hangs in
+	 * the Linux Kernel driver because it do not perform reset initialization
+	 * and start accessing device memory.
+	 */
+	if (pcie->pcie_cfg->type == BCM2712)
+		pcie->pcie_cfg->bridge_sw_init_set(pcie, 0);
+
 	return 0;
 }
 
