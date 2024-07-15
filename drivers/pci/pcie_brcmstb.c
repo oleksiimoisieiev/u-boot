@@ -202,6 +202,7 @@ struct brcm_pcie {
 	struct reset_ctl	rescal;
 	struct reset_ctl	bridge_reset;
 	const struct brcm_pcie_cfg_data *pcie_cfg;
+	uint16_t		bus_base;
 };
 
 /**
@@ -313,6 +314,7 @@ static int brcm_pcie_config_address(const struct udevice *dev, pci_dev_t bdf,
 	 * Busses 0 (host PCIe bridge) and 1 (its immediate child)
 	 * are limited to a single device each
 	 */
+	pci_bus -= pcie->bus_base;
 	if (pci_bus < 2 && pci_dev > 0)
 		return -EINVAL;
 
@@ -630,6 +632,8 @@ static int brcm_pcie_probe(struct udevice *dev)
 	int i, ret;
 	u16 nlw, cls, lnksta;
 	u32 tmp;
+
+	pcie->bus_base = hose->first_busno;
 
 	/*
 	 * Deassert rescal reset for BCM2712.
