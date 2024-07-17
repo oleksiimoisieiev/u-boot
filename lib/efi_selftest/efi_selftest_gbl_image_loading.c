@@ -145,7 +145,7 @@ static int teardown(void)
 	return EFI_ST_SUCCESS;
 }
 
-EFI_UNIT_TEST(gbl_ab) = {
+EFI_UNIT_TEST(gbl_image_loading) = {
 	.name = "GBL image loading protocol",
 	.phase = EFI_EXECUTE_BEFORE_BOOTTIME_EXIT,
 	.setup = setup,

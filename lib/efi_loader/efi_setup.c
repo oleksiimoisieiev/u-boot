@@ -5,9 +5,12 @@
  *  Copyright (c) 2016-2018 Alexander Graf et al.
  */
 
+#include <efi.h>
 #define LOG_CATEGORY LOGC_EFI
 
 #include <common.h>
+#include <efi_driver.h>
+#include <efi_gbl_ab.h>
 #include <efi_gbl_image_loading.h>
 #include <efi_loader.h>
 #include <efi_variable.h>
@@ -339,6 +342,14 @@ efi_status_t efi_init_obj_list(void)
 	ret = efi_init_capsule();
 	if (ret != EFI_SUCCESS)
 		goto out;
+
+	if (IS_ENABLED(CONFIG_EFI_GBL_AB_PROTOCOL)) {
+		ret = efi_gbl_ab_register();
+		if (ret != EFI_SUCCESS) {
+			log_err("AB_PROTOCOL initialization error\n");
+			goto out;
+		}
+	}
 
 	/* Initialize EFI runtime services */
 	ret = efi_reset_system_init();

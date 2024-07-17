@@ -11,3 +11,4 @@ obj-y += efi_block_device.o
 endif
 
 obj-$(CONFIG_EFI_GBL_IMAGE_LOADING) += efi_gbl_image_loading_protocol.o
+obj-$(CONFIG_EFI_GBL_AB_PROTOCOL) += efi_gbl_ab_protocol.o
