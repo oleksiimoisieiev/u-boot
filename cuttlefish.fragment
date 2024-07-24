@@ -71,3 +71,7 @@ CONFIG_LOG_ERROR_RETURN=y
 
 # Must not use RNG from host.
 # CONFIG_VIRTIO_RNG is not set
+
+# Enable GBL Image Loading protocol
+CONFIG_EFI_LOADER=y
+CONFIG_EFI_GBL_IMAGE_LOADING=y

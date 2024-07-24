@@ -1090,6 +1090,7 @@ config SMBIOS_PARSER
 
 source lib/efi/Kconfig
 source lib/efi_loader/Kconfig
+source lib/efi_driver/Kconfig
 source lib/optee/Kconfig
 
 config TEST_FDTDEC

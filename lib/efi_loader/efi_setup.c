@@ -8,6 +8,7 @@
 #define LOG_CATEGORY LOGC_EFI
 
 #include <common.h>
+#include <efi_gbl_image_loading.h>
 #include <efi_loader.h>
 #include <efi_variable.h>
 #include <log.h>
@@ -348,6 +349,13 @@ efi_status_t efi_init_obj_list(void)
 	if (IS_ENABLED(CONFIG_EFI_CAPSULE_ON_DISK) &&
 	    !IS_ENABLED(CONFIG_EFI_CAPSULE_ON_DISK_EARLY))
 		ret = efi_launch_capsules();
+
+	/* Register GBL Image Loading protocol */
+	if (IS_ENABLED(CONFIG_EFI_GBL_IMAGE_LOADING)) {
+		ret = efi_gbl_image_loading_register();
+		if (ret != EFI_SUCCESS)
+			goto out;
+	}
 out:
 	efi_obj_list_initialized = ret;
 	return ret;

@@ -74,6 +74,8 @@ endif
 
 obj-$(CONFIG_EFI_ESRT) += efi_selftest_esrt.o
 
+obj-$(CONFIG_EFI_GBL_IMAGE_LOADING) += efi_selftest_gbl_image_loading.o
+
 targets += \
 efi_miniapp_file_image_exception.h \
 efi_miniapp_file_image_exit.h \
