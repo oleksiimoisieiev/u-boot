@@ -42,6 +42,7 @@ struct virtio_console_port_priv {
 	struct virtqueue *transmitq;
 	int port_num;
 	unsigned char char_inbuf[1] __aligned(sizeof(void *));
+	bool buffer_queued;
 };
 
 // Private data struct for the top-level virtio-console udevice.
@@ -243,10 +244,6 @@ static int virtio_console_port_post_probe(struct virtio_console_port_priv *priv)
 {
 	int ret;
 
-	ret = add_char_inbuf(priv);
-	if (ret)
-		return log_msg_ret("Failed to set up initial character buffer", ret);
-
 	// QEMU will accept output on ports at any time, but will not pass
 	// through input until it receives a VIRTIO_CONSOLE_PORT_OPEN on that
 	// port number. It doesn't seem to produce a VIRTIO_CONSOLE_DEVICE_ADD
@@ -281,6 +278,13 @@ static int virtio_console_port_serial_getc(struct udevice *dev)
 	if (ret)
 		return ret;
 
+	if (!priv->buffer_queued) {
+		ret = add_char_inbuf(priv);
+		if (ret)
+			return log_msg_ret("Failed to set up character buffer", ret);
+		priv->buffer_queued = true;
+	}
+
 	in = virtqueue_get_buf(priv->receiveq, &len);
 
 	if (!in)
@@ -288,11 +292,9 @@ static int virtio_console_port_serial_getc(struct udevice *dev)
 	else if (len != 1)
 		log_err("%s: too much data: %d\n", __func__, len);
 
-	int ch = *in;
+	priv->buffer_queued = false;
 
-	ret = add_char_inbuf(priv);
-	if (ret)
-		return log_msg_ret("Failed to set up character buffer", ret);
+	int ch = *in;
 
 	return ch;
 }
@@ -372,6 +374,7 @@ static int virtio_console_create_port(struct udevice *dev,
 		.receiveq = queues[(port_num * 2) + 2],
 		.transmitq = queues[(port_num * 2) + 3],
 		.port_num = port_num,
+		.buffer_queued = false,
 	};
 
 	return log_ret(virtio_console_port_post_probe(priv));
@@ -405,10 +408,8 @@ static int virtio_console_probe(struct udevice *dev)
 		.receiveq = virtqueues[0],
 		.transmitq = virtqueues[1],
 		.port_num = 0,
+		.buffer_queued = false,
 	};
-	ret = add_char_inbuf(&priv->port0);
-	if (ret)
-		return log_msg_ret("Failed to set up character buffer", ret);
 
 	if (is_multiport == 0) {
 		priv->receiveq_control = NULL;
