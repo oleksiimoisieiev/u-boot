@@ -17,6 +17,7 @@ const efi_guid_t efi_gbl_image_loading_protocol_guid =
 typedef struct image_buffer {
 	size_t buffer_size;
 	uintptr_t buffer;
+	size_t alignment;
 	size_t name_len_bytes;
 	efi_char16_t name[PARTITION_NAME_LEN_U16];
 } image_buffer;
@@ -25,6 +26,7 @@ static image_buffer image_buffers[] = {
 	{
 		.buffer_size = 0,
 		.buffer = 0,
+		.alignment = 2 * 1024 * 1024,
 		.name_len_bytes = 5 * sizeof(efi_char16_t),
 		.name = u"boot",
 	},
@@ -32,6 +34,7 @@ static image_buffer image_buffers[] = {
 		// ramdisk contains 'init_boot' and 'vendor_boot'
 		.buffer_size = 0,
 		.buffer = 0,
+		.alignment = 0,
 		.name_len_bytes = 8 * sizeof(efi_char16_t),
 		.name = u"ramdisk",
 	},
@@ -50,21 +53,23 @@ static efi_status_t EFIAPI get_buffer(struct efi_image_loading_protocol *this,
 			   pbuf->name_len_bytes) == 0) {
 			if (pbuf->buffer == 0) {
 				u64 address;
+				size_t alloc_size = gbl_info->size_bytes + pbuf->alignment;
 
 				efi_status_t ret = efi_allocate_pages(
 					EFI_ALLOCATE_ANY_PAGES,
 					EFI_RUNTIME_SERVICES_CODE,
-					efi_size_in_pages(gbl_info->size_bytes),
+					efi_size_in_pages(alloc_size),
 					&address);
 
 				if (ret != EFI_SUCCESS) {
-					log_err("Failed to allocate UEFI buffer: 0x%lu\n",
+					log_err("Failed to allocate UEFI buffer: %lu\n",
 						ret);
 					return ret;
 				}
 
-				pbuf->buffer = address;
-				pbuf->buffer_size = gbl_info->size_bytes;
+				size_t offset = pbuf->alignment - address % pbuf->alignment;
+				pbuf->buffer = address + offset;
+				pbuf->buffer_size = alloc_size - offset;
 			}
 
 			if (gbl_info->size_bytes > pbuf->buffer_size)
