@@ -4,15 +4,9 @@ BRANCH=u-boot-mainline
 SKIP_CP_KERNEL_HDR=1
 KERNEL_DIR=u-boot
 
-CLANG_PREBUILT_BIN=prebuilts/clang/host/linux-x86/clang-${CLANG_VERSION}/bin
 CC=clang
 HOSTCC=clang
 NM=llvm-nm
-
-# b/162850629
-# py3-cmd distutils is broken; use clang's copy
-LIBUFDT_PREBUILTS_BIN=build/kernel/build-tools/path/linux-x86
-BUILDTOOLS_PREBUILT_BIN=${CLANG_PREBUILT_BIN}/../python3/bin
 
 # Hack to avoid using incompatible host bfd
 LINUX_GCC_CROSS_COMPILE_COMPAT_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/x86_64-linux-android/bin
