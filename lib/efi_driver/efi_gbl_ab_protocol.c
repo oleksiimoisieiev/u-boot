@@ -44,6 +44,36 @@ u32 calculate_metadata_checksum(const struct bootloader_control *data)
 		     sizeof(*data) - sizeof(data->crc32_le));
 }
 
+static efi_status_t ensure_buffer_initialized(void)
+{
+	if (!block_device) {
+		block_device = blk_get_dev(device_name, 0);
+		if (!block_device) {
+			log_err("Failed to get device: %s:0\n", device_name);
+			return EFI_DEVICE_ERROR;
+		}
+
+		if (block_device->blksz < sizeof(android_metadata))
+			return EFI_BUFFER_TOO_SMALL;
+
+		if (part_get_info_by_name(block_device, ab_partition_name,
+					  &ab_partition) < 1) {
+			log_err("No partition '%s' on device '%s:0'\n",
+				ab_partition_name, device_name);
+			return EFI_DEVICE_ERROR;
+		}
+	}
+
+	if (!buffer) {
+		buffer = malloc_cache_aligned(block_device->blksz);
+		if (!buffer)
+			return EFI_OUT_OF_RESOURCES;
+		memset(buffer, 0, block_device->blksz);
+	}
+
+	return EFI_SUCCESS;
+}
+
 static void reinitialize_private(void)
 {
 	/* Assume normal boot, so don't fill the command */
@@ -103,8 +133,7 @@ static efi_status_t load_boot_data_private(void)
 	       sizeof(android_metadata));
 	if (calculate_metadata_checksum(&android_metadata) !=
 	    android_metadata.crc32_le) {
-		log_warning(
-			"On-disk AB metadata corrupted\n");
+		log_warning("On-disk AB metadata corrupted\n");
 		return EFI_CRC_ERROR;
 	}
 
@@ -116,13 +145,15 @@ load_boot_data(struct efi_gbl_slot_protocol *this,
 	       struct efi_gbl_slot_metadata_block *metadata)
 {
 	EFI_ENTRY("%p, %p", this, metadata);
-
 	if (this != &efi_gbl_slot_proto || !metadata) {
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
 
-	efi_status_t res = load_boot_data_private();
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
+	res = load_boot_data_private();
 	if (res != EFI_SUCCESS) {
 		memset(metadata, 0, sizeof(*metadata));
 		return EFI_EXIT(res);
@@ -142,8 +173,11 @@ static efi_status_t EFIAPI get_slot_info(struct efi_gbl_slot_protocol *this,
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
 
-	efi_status_t res = load_boot_data_private();
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
+	res = load_boot_data_private();
 	if (res != EFI_SUCCESS) {
 		memset(info, 0, sizeof(*info));
 		return EFI_EXIT(res);
@@ -172,11 +206,13 @@ static efi_status_t get_current_slot_idx(struct efi_gbl_slot_protocol *this,
 		return EFI_INVALID_PARAMETER;
 	}
 
-	efi_status_t res = load_boot_data_private();
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
-	if (res != EFI_SUCCESS) {
+	res = load_boot_data_private();
+	if (res != EFI_SUCCESS)
 		return res;
-	}
 
 	u8 max_idx = 0;
 
@@ -207,11 +243,13 @@ static efi_status_t EFIAPI get_current_slot(struct efi_gbl_slot_protocol *this,
 	}
 
 	u8 idx;
-	efi_status_t res = get_current_slot_idx(this, &idx);
-
-	if (res != EFI_SUCCESS) {
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
 		return EFI_EXIT(res);
-	}
+
+	res = get_current_slot_idx(this, &idx);
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	struct slot_metadata const *slot = &android_metadata.slot_info[idx];
 
@@ -233,11 +271,13 @@ static efi_status_t EFIAPI set_active_slot(struct efi_gbl_slot_protocol *this,
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
 
-	efi_status_t res = load_boot_data_private();
-
-	if (res != EFI_SUCCESS) {
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
 		return EFI_EXIT(res);
-	}
+
+	res = load_boot_data_private();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	if (idx >= android_metadata.nb_slot) {
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
@@ -267,11 +307,13 @@ set_slot_unbootable(struct efi_gbl_slot_protocol *this, u8 idx, u32 reason)
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
 
-	efi_status_t res = load_boot_data_private();
-
-	if (res != EFI_SUCCESS) {
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
 		return EFI_EXIT(res);
-	}
+
+	res = load_boot_data_private();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	if (idx >= android_metadata.nb_slot) {
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
@@ -293,11 +335,13 @@ static efi_status_t EFIAPI mark_boot_attempt(struct efi_gbl_slot_protocol *this)
 	EFI_ENTRY("%p", this);
 
 	u8 idx;
-	efi_status_t res = get_current_slot_idx(this, &idx);
-
-	if (res != EFI_SUCCESS) {
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
 		return EFI_EXIT(res);
-	}
+
+	res = get_current_slot_idx(this, &idx);
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	struct slot_metadata *slot = &android_metadata.slot_info[idx];
 
@@ -318,16 +362,17 @@ static efi_status_t EFIAPI get_boot_reason(struct efi_gbl_slot_protocol *this,
 					   u8 *subreason)
 {
 	EFI_ENTRY("%p, %p, %p, %p", this, reason, size, subreason);
-
 	if (this != &efi_gbl_slot_proto || !reason || !size || !subreason) {
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
 
-	efi_status_t res = load_boot_data_private();
-
-	if (res != EFI_SUCCESS) {
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
 		return EFI_EXIT(res);
-	}
+
+	res = load_boot_data_private();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	if (strcmp(command, bootloader_str) == 0) {
 		*reason = BOOTLOADER;
@@ -345,16 +390,17 @@ static efi_status_t EFIAPI set_boot_reason(struct efi_gbl_slot_protocol *this,
 					   const u8 *subreason)
 {
 	EFI_ENTRY();
-
 	if (this != &efi_gbl_slot_proto || reason > REBOOT || !subreason) {
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
 
-	efi_status_t res = load_boot_data_private();
-
-	if (res != EFI_SUCCESS) {
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
 		return EFI_EXIT(res);
-	}
+
+	res = load_boot_data_private();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	switch (reason) {
 	case RECOVERY:
@@ -375,10 +421,13 @@ static efi_status_t EFIAPI set_boot_reason(struct efi_gbl_slot_protocol *this,
 static efi_status_t EFIAPI reinitialize(struct efi_gbl_slot_protocol *this)
 {
 	EFI_ENTRY("%p", this);
-
 	if (this != &efi_gbl_slot_proto) {
 		return EFI_EXIT(EFI_INVALID_PARAMETER);
 	}
+
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	reinitialize_private();
 
@@ -388,6 +437,10 @@ static efi_status_t EFIAPI reinitialize(struct efi_gbl_slot_protocol *this)
 static efi_status_t EFIAPI flush_changes(struct efi_gbl_slot_protocol *this)
 {
 	EFI_ENTRY("%p", this);
+
+	efi_status_t res = ensure_buffer_initialized();
+	if (res != EFI_SUCCESS)
+		return EFI_EXIT(res);
 
 	if (!dirty) {
 		return EFI_EXIT(EFI_SUCCESS);
@@ -431,33 +484,6 @@ static struct efi_gbl_slot_protocol efi_gbl_slot_proto = {
 
 efi_status_t efi_gbl_ab_register(void)
 {
-	if (!block_device) {
-		block_device = blk_get_dev(device_name, 0);
-		if (!block_device) {
-			log_err("Failed to get device: %s:0\n", device_name);
-			return EFI_DEVICE_ERROR;
-		}
-	}
-
-	if (block_device->blksz < sizeof(android_metadata)) {
-		return EFI_BUFFER_TOO_SMALL;
-	}
-
-	if (!buffer) {
-		buffer = malloc_cache_aligned(block_device->blksz);
-		if (!buffer) {
-			return EFI_OUT_OF_RESOURCES;
-		}
-		memset(buffer, 0, block_device->blksz);
-	}
-
-	if (part_get_info_by_name(block_device, ab_partition_name,
-				  &ab_partition) < 1) {
-		log_err("No partition '%s' on device '%s:0'\n",
-			ab_partition_name, device_name);
-		return EFI_DEVICE_ERROR;
-	}
-
 	efi_status_t ret = efi_add_protocol(efi_root, &efi_gbl_ab_boot_guid,
 					    &efi_gbl_slot_proto);
 	if (ret != EFI_SUCCESS) {
