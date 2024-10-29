@@ -16,3 +16,11 @@ config EFI_GBL_AB_PROTOCOL
 	  This protocol is used for determining the current boot slot,
 	  marking boot attempts, changing the currently active slot,
 	  and querying metadata about boot slots.
+
+config EFI_GBL_OS_CONFIGURATION_PROTOCOL
+	bool "Include GBL Os Configuration protocol"
+	depends on EFI_LOADER
+	help
+	  Include the driver for the custom GBL os configuration protocol.
+	  This protocol is used to select base device trees and overlays
+	  and apply runtime fix-ups to kernel commandline and bootconfig.
