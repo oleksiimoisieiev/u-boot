@@ -12,6 +12,7 @@
 #include <efi_driver.h>
 #include <efi_gbl_ab.h>
 #include <efi_gbl_image_loading.h>
+#include <efi_gbl_os_configuration.h>
 #include <efi_loader.h>
 #include <efi_variable.h>
 #include <log.h>
@@ -347,6 +348,14 @@ efi_status_t efi_init_obj_list(void)
 		ret = efi_gbl_ab_register();
 		if (ret != EFI_SUCCESS) {
 			log_err("AB_PROTOCOL initialization error\n");
+			goto out;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_EFI_GBL_OS_CONFIGURATION_PROTOCOL)) {
+		ret = efi_gbl_os_config_register();
+		if (ret != EFI_SUCCESS) {
+			log_err("GBL_OS_CONFIGURATION initialization error\n");
 			goto out;
 		}
 	}
