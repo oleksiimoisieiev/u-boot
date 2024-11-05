@@ -4,9 +4,12 @@ BRANCH=u-boot-mainline
 SKIP_CP_KERNEL_HDR=1
 KERNEL_DIR=u-boot
 
+LLVM=
 CC=clang
 HOSTCC=clang
 NM=llvm-nm
+
+unset DTC
 
 # Hack to avoid using incompatible host bfd
 LINUX_GCC_CROSS_COMPILE_COMPAT_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/x86_64-linux-android/bin
