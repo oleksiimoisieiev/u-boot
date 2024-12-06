@@ -287,7 +287,6 @@ copy_to_dist_dir(
 # Use SWIG enabled Python
 py_runtime_pair(
     name = "py_runtime_pair",
-    py2_runtime = "//prebuilts/build-tools:python2",
     py3_runtime = "//prebuilts/clang/host/linux-x86/clang-{}:python3".format(
         CLANG_VERSION,
     ),
