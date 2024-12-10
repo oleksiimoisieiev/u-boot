@@ -1,5 +1,5 @@
-load("@bazel_tools//tools/python:toolchain.bzl", "py_runtime_pair")
 load("@kernel_toolchain_info//:dict.bzl", "CLANG_VERSION")
+load("@rules_python//python:py_runtime_pair.bzl", "py_runtime_pair")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:kernel.bzl", "kernel_build", "kernel_compile_commands")
 
