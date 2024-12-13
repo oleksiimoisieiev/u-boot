@@ -1,5 +1,5 @@
 # Disable ARM64_CRC32 as it is broken with clang/llvm on arm64
-# CONFIG_ARM64_CRC32 is not set
+CONFIG_ARM64_CRC32=n
 
 CONFIG_NET_RANDOM_ETHADDR=y
 CONFIG_DM_GPIO=y

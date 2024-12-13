@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * (C) Copyright 2018, Linaro Limited
- *
- * SPDX-License-Identifier:   GPL-2.0+
  */
 
 #ifndef _AVB_VERIFY_H
@@ -213,7 +212,7 @@ int avb_find_main_pubkey(const AvbSlotVerifyData *data, const uint8_t **key,
  */
 int avb_pubkey_is_trusted(const uint8_t *key, size_t size);
 
-/*
+/**
  * ============================================================================
  * I/O helper inline functions
  * ============================================================================

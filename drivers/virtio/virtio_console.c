@@ -10,6 +10,7 @@
  */
 
 #include <blk.h>
+#include <common.h>
 #include <dm.h>
 #include <dm/device-internal.h>
 #include <dm/devres.h>

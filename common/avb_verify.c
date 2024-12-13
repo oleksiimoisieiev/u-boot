@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * (C) Copyright 2018, Linaro Limited
- *
- * SPDX-License-Identifier:	GPL-2.0+
  */
 
 #include <android_bootloader_oemlock.h>
@@ -178,9 +177,9 @@ static unsigned long blk_read_and_flush(struct avb_part *part,
 	 * Reading fails on unaligned buffers, so we have to
 	 * use aligned temporary buffer and then copy to destination
 	 */
-
 	if (unaligned) {
-		printf("Handling unaligned read buffer..\n");
+		debug("%s: handling unaligned read buffer, addr = 0x%p\n",
+		      __func__, buffer);
 		tmp_buf = get_sector_buf();
 		buf_size = get_sector_buf_size();
 		if (sectors > buf_size / part->info.blksz)
@@ -219,7 +218,8 @@ static unsigned long avb_blk_write(struct avb_part *part, lbaint_t start,
 	if (unaligned) {
 		tmp_buf = get_sector_buf();
 		buf_size = get_sector_buf_size();
-		printf("Handling unaligned wrire buffer..\n");
+		debug("%s: handling unaligned read buffer, addr = 0x%p\n",
+		      __func__, buffer);
 		if (sectors > buf_size / part->info.blksz)
 			sectors = buf_size / part->info.blksz;
 
@@ -575,7 +575,7 @@ static AvbIOResult read_rollback_index(AvbOps *ops,
 {
 #ifndef CONFIG_OPTEE_TA_AVB
 	/* For now we always return 0 as the stored rollback index. */
-	printf("%s not supported yet\n", __func__);
+	debug("%s: rollback protection is not implemented\n", __func__);
 
 	if (out_rollback_index)
 		*out_rollback_index = 0;
@@ -621,7 +621,7 @@ static AvbIOResult write_rollback_index(AvbOps *ops,
 {
 #ifndef CONFIG_OPTEE_TA_AVB
 	/* For now this is a no-op. */
-	printf("%s not supported yet\n", __func__);
+	debug("%s: rollback protection is not implemented\n", __func__);
 
 	return AVB_IO_RESULT_OK;
 #else

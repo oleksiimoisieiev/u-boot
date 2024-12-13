@@ -92,7 +92,7 @@ void fastboot_okay(const char *reason, char *response)
 int __weak fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 {
 	int ret;
-	static const char * const commands[] = {
+	static const char * const boot_cmds[] = {
 		[FASTBOOT_REBOOT_REASON_BOOTLOADER] = "bootonce-bootloader",
 		[FASTBOOT_REBOOT_REASON_FASTBOOTD] = "boot-fastboot",
 		[FASTBOOT_REBOOT_REASON_RECOVERY] = "boot-recovery",
@@ -123,7 +123,7 @@ int __weak fastboot_set_reboot_flag(enum fastboot_reboot_reason reason)
 	ret = bcb_find_partition_and_load(bcb_iface, device, "misc");
 	if (ret) goto out;
 
-	ret = bcb_set(BCB_FIELD_COMMAND, commands[reason]);
+	ret = bcb_set(BCB_FIELD_COMMAND, boot_cmds[reason]);
 	if (ret) goto out;
 
 	ret = bcb_set(BCB_FIELD_RECOVERY, recovery[reason]);

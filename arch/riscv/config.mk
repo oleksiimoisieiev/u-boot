@@ -32,7 +32,8 @@ PLATFORM_CPPFLAGS	+= -mno-relax
 else
 PLATFORM_CPPFLAGS	+= -ffixed-gp
 endif
-PLATFORM_CPPFLAGS	+= -fpic
+PLATFORM_CPPFLAGS	+= -ffixed-x3 -fpic
+
 PLATFORM_RELFLAGS	+= -fno-common -ffunction-sections -fdata-sections
 LDFLAGS_u-boot		+= --gc-sections -static -pie
 

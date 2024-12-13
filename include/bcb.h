@@ -25,13 +25,12 @@ int bcb_load(struct blk_desc *block_description,
 	     struct disk_partition *disk_partition);
 int bcb_set(enum bcb_field field, const char *value);
 
-
 /**
  * bcb_get() - get the field value.
  * @field: field to get
  * @value_out: buffer to copy bcb field value to
  * @value_size: buffer size to avoid overflow in case
- * 		value_out is smaller then the field value
+ *              value_out is smaller then the field value
  */
 int bcb_get(enum bcb_field field, char *value_out, size_t value_size);
 
@@ -64,9 +63,9 @@ static inline int bcb_store(void)
 {
 	return -EOPNOTSUPP;
 }
+
 static inline void bcb_reset(void)
 {
-	return;
 }
 #endif
 

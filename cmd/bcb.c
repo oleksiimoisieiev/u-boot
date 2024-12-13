@@ -25,7 +25,7 @@ enum bcb_cmd {
 	BCB_CMD_STORE,
 };
 
-static const char* fields[] = {
+static const char * const fields[] = {
 	"command",
 	"status",
 	"recovery",
@@ -90,7 +90,7 @@ static int bcb_is_misused(int argc, char *const argv[])
 		return -1;
 	}
 
-	if (cmd != BCB_CMD_LOAD && (block == NULL)) {
+	if (cmd != BCB_CMD_LOAD && !block) {
 		printf("Error: Please, load BCB first!\n");
 		return -1;
 	}
@@ -135,7 +135,7 @@ static void __bcb_reset(void)
 	memset(&bcb, 0, sizeof(struct bootloader_message));
 }
 
-static int __bcb_initialize(const char* iface, int devnum, const char *partp)
+static int __bcb_initialize(const char *iface, int devnum, const char *partp)
 {
 	char *endp;
 	int part, ret;
@@ -173,10 +173,7 @@ static int __bcb_initialize(const char* iface, int devnum, const char *partp)
 
 err_read_fail:
 	printf("Error: %d %d:%s read failed (%d)\n", block->uclass_id,
-						     block->devnum,
-						     partition->name, ret);
-	goto err;
-err:
+	       block->devnum, partition->name, ret);
 	__bcb_reset();
 	return CMD_RET_FAILURE;
 }
@@ -196,20 +193,16 @@ static int __bcb_load(void)
 	}
 
 	debug("%s: Loaded from %d %d:%s\n", __func__, block->uclass_id,
-						      block->devnum,
-						      partition->name);
+	      block->devnum, partition->name);
 
 	return CMD_RET_SUCCESS;
 err_read_fail:
 	printf("Error: %d %d:%s read failed (%d)\n", block->uclass_id,
-						     block->devnum,
-						     partition->name, ret);
+	       block->devnum, partition->name, ret);
 	goto err;
 err_too_small:
 	printf("Error: %d %d:%s too small!", block->uclass_id,
-					     block->devnum,
-					     partition->name);
-	goto err;
+	       block->devnum, partition->name);
 err:
 	__bcb_reset();
 	return CMD_RET_FAILURE;
@@ -221,7 +214,8 @@ static int do_bcb_load(struct cmd_tbl *cmdtp, int flag, int argc,
 	int ret;
 	int devnum;
 	char *endp;
-	char *iface = "mcc";
+	char *iface = "mmc";
+
 	if (argc == 4) {
 		iface = argv[1];
 		argc--;
@@ -354,8 +348,7 @@ static int __bcb_store(void)
 	return CMD_RET_SUCCESS;
 err:
 	printf("Error: %d %d:%s write failed (%d)\n", block->uclass_id,
-						      block->devnum,
-						      partition->name, ret);
+	       block->devnum, partition->name, ret);
 
 	return CMD_RET_FAILURE;
 }
@@ -391,7 +384,8 @@ int bcb_load(struct blk_desc *block_description, struct disk_partition *disk_par
 
 int bcb_set(enum bcb_field field, const char *value)
 {
-	if (field > BCB_FIELD_STAGE) return CMD_RET_FAILURE;
+	if (field > BCB_FIELD_STAGE)
+		return CMD_RET_FAILURE;
 	return __bcb_set(fields[field], value);
 }
 
@@ -400,8 +394,10 @@ int bcb_get(enum bcb_field field, char *value_out, size_t value_size)
 	int size;
 	char *field_value;
 
-	if (field > BCB_FIELD_STAGE) return CMD_RET_FAILURE;
-	if (bcb_field_get(fields[field], &field_value, &size)) return CMD_RET_FAILURE;
+	if (field > BCB_FIELD_STAGE)
+		return CMD_RET_FAILURE;
+	if (bcb_field_get(fields[field], &field_value, &size))
+		return CMD_RET_FAILURE;
 
 	strlcpy(value_out, field_value, value_size);
 
