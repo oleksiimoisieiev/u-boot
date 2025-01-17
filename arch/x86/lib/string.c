@@ -132,7 +132,17 @@ void *memcpy(void *dstpp, const void *srcpp, size_t len)
 
 void *memmove(void *dest, const void *src, size_t n)
 {
+	/*
+	 * When U-Boot is configured to be started from PVH kernel,
+	 * it uses elf file x86_64. In this case to make memmove
+	 * work we have to change variable sizes so they can store
+	 * 64bit addresses.
+	 */
+#if defined(CONFIG_X86_64) && defined (CONFIG_HVM)
+	long d0, d1, d2, d3, d4, d5;
+#else
 	int d0, d1, d2, d3, d4, d5;
+#endif
 	char *ret = dest;
 
 	__asm__ __volatile__(
@@ -283,9 +293,15 @@ void *memmove(void *dest, const void *src, size_t n)
 		"11:"
 		: "=&c" (d0), "=&S" (d1), "=&D" (d2),
 		  "=r" (d3), "=r" (d4), "=r"(d5)
+#if defined(CONFIG_X86_64) && defined(CONFIG_HVM)
+		: "0" ((long int)n),
+		 "1" ((long int)src),
+		 "2" ((long int)dest)
+#else
 		: "0" (n),
 		 "1" (src),
 		 "2" (dest)
+#endif
 		: "memory");
 
 	return ret;
