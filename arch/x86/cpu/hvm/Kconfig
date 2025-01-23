@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+# Copyright (C) 2025, EPAM Systems
+
+config HVM
+	bool
+	select ARCH_EARLY_INIT_R
+	imply AHCI_PCI
+
+if HVM
+
+config SYS_CAR_ADDR
+	hex
+	default 0x10000
+
+config SYS_CAR_SIZE
+	hex
+	default 0x10000
+
+endif

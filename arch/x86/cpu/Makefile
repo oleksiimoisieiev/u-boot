@@ -49,6 +49,7 @@ obj-$(CONFIG_SYS_COREBOOT) += coreboot/
 obj-$(CONFIG_SYS_SLIMBOOTLOADER) += slimbootloader/
 obj-$(CONFIG_EFI) += efi/
 obj-$(CONFIG_QEMU) += qemu/
+obj-$(CONFIG_HVM) += hvm/
 obj-$(CONFIG_NORTHBRIDGE_INTEL_IVYBRIDGE) += ivybridge/
 obj-$(CONFIG_INTEL_QUARK) += quark/
 obj-$(CONFIG_INTEL_QUEENSBAY) += queensbay/

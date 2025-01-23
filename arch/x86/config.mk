@@ -78,7 +78,7 @@ ifeq ($(CONFIG_EFI_APP),y)
 PLATFORM_CPPFLAGS += $(CFLAGS_EFI)
 LDFLAGS_FINAL += -znocombreloc -shared
 LDSCRIPT := $(LDSCRIPT_EFI)
-
+*
 else
 
 ifeq ($(IS_32BIT),y)
@@ -132,4 +132,10 @@ EFI_TARGET := --target=efi-app-x86_64
 else
 EFI_TARGET := --target=efi-app-ia32
 endif
+endif
+
+ifdef CONFIG_X86_64
+PLATFORM_ELFFLAGS += -B x86_64 -O elf64-little
+else
+PLATFORM_ELFFLAGS += -B i386 -O elf32-i386
 endif

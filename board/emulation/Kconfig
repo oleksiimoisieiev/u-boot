@@ -23,8 +23,16 @@ config TARGET_QEMU_X86_64
 	  U-Boot is built as a 64-bit binary. This allows testing while
 	  this feature is being completed.
 
+config TARGET_HVM_X86_64
+	bool "HVM x86 64-bit"
+	help
+	  Build emulated image for Xen hypervisor. This will result building
+	  U-Boot binary which can be started from the mini-os image from inside
+	  hvm guest.
+
 endchoice
 
 source "board/emulation/qemu-x86/Kconfig"
+source "board/emulation/hvm-x86/Kconfig"
 
 endif

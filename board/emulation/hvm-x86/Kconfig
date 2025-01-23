@@ -1,0 +1,26 @@
+if TARGET_HVM_X86_64
+
+config SYS_BOARD
+	default "hvm-x86"
+
+config SYS_VENDOR
+	default "emulation"
+
+config SYS_SOC
+	default "hvm"
+
+config SYS_CONFIG_NAME
+	default "hvm"
+
+config TEXT_BASE
+	default 0x19fa8
+
+config BOARD_SPECIFIC_OPTIONS # dummy
+	def_bool y
+	select HVM
+	select BOARD_ROMSIZE_KB_1024
+	imply VIRTIO_PCI
+	imply VIRTIO_NET
+	imply VIRTIO_BLK
+
+endif
