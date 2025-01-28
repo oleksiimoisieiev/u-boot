@@ -13,8 +13,16 @@
 .globl _start
 .type _start, @function
 _start:
+	/*
+	 * When U-Boot built as binary meant to be started from HVM domain
+	 * rsp is already set by the PVH kernel. So no need to rewrite it.
+	 */
+#ifndef CONFIG_HVM
 	/* Set up memory using the existing stack */
 	mov	%rsp, %rdi
+#else
+	mov	%rdi, %rsp
+#endif
 	call	board_init_f_alloc_reserve
 	mov	%rax, %rsp
 
